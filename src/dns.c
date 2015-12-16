@@ -1,7 +1,5 @@
 /* Copyright © 2015 coord.cn. All rights reserved.
  * @author: QianYe(coordcn@163.com)
- * @reference: luvit/luv_dns.c
- *             node.js/cares_wrap.cc
  */
 
 #include "init.h"
@@ -10,31 +8,13 @@
 static ares_channel LuaIO_ares_channel;
 static uv_timer_t LuaIO_ares_timer;
 static LuaIO_pool_t LuaIO_ares_task_pool;
-static LuaIO_pool_t LuaIO_dns_arg_pool;
 static LuaIO_hash_t* LuaIO_ares_tasks;
-static LuaIO_hash_t* LuaIO_dns_ipv4_cache;
-static LuaIO_hash_t* LuaIO_dns_ipv6_cache;
-
-#define DNS_MAX_AGE_DEFAULT 7 * 24 * 3600 * 1000
 
 typedef struct {
   UV_HANDLE_FIELDS
   ares_socket_t sock;
   uv_poll_t poll_watcher;
 } LuaIO_ares_task_t;
-
-typedef struct {
-  struct hostent* ipv4_host;
-  uint64_t ipv4_expires;
-  struct hostent* ipv6_host;
-  uint64_t ipv6_expires;
-} LuaIO_dns_result_t;
-
-typedef struct {
-  lua_State* L;
-  size_t len;
-  char* name; 
-} LuaIO_dns_arg_t;
 
 static void LuaIO_ares_timeout(uv_timer_t* handle) {
   ares_process_fd(LuaIO_ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
@@ -131,10 +111,6 @@ static void LuaIO_ares_free_task(void *p) {
   LuaIO_pfree(&LuaIO_ares_task_pool, p);
 }
 
-static void LuaIO_ares_free_hostent(void *p) {
-  ares_free_hostent((struct hostent*)p);
-}
-
 void LuaIO_dns_init(lua_State* L) {
   uv_loop_t* loop = uv_default_loop();
   int ret = ares_library_init(ARES_LIB_INIT_ALL);
@@ -159,16 +135,9 @@ void LuaIO_dns_init(lua_State* L) {
 
   uv_timer_init(loop, &LuaIO_ares_timer);
   LuaIO_pool_init(&LuaIO_ares_task_pool, 1024);
-  LuaIO_pool_init(&LuaIO_dns_arg_pool, 1024);
   LuaIO_ares_tasks = LuaIO_hash_create_int_pointer(LUAIO_2K_SHIFT,
-                                       0,
-                                       LuaIO_ares_free_task);
-  LuaIO_dns_ipv4_cache = LuaIO_hash_create_strcase_pointer(LUAIO_4K_SHIFT, 
-                                         DNS_MAX_AGE_DEFAULT, 
-                                         LuaIO_ares_free_hostent);
-  LuaIO_dns_ipv6_cache = LuaIO_hash_create_strcase_pointer(LUAIO_4K_SHIFT, 
-                                         DNS_MAX_AGE_DEFAULT, 
-                                         LuaIO_ares_free_hostent);
+                                                   0,
+                                                   LuaIO_ares_free_task);
 }
 
 static void LuaIO_dns_host2addrs(lua_State* L, struct hostent* host) {
@@ -182,19 +151,17 @@ static void LuaIO_dns_host2addrs(lua_State* L, struct hostent* host) {
   }
 }
 
-static void LuaIO_dns_queryA_callback(void* data, 
+static void LuaIO_dns_queryA_callback(void* arg, 
                                       int status, 
                                       int timeouts, 
                                       unsigned char* buf,
                                       int len) {
-  LuaIO_dns_arg_t* arg = (LuaIO_dns_arg_t*)data;
-  lua_State* L = arg->L;
+  lua_State* L = arg;
 
   if (status != ARES_SUCCESS) {
     lua_pushnil(L);
     lua_pushinteger(L, status);
     LuaIO_resume(L, 2);
-    LuaIO_pfree(&LuaIO_dns_arg_pool, arg);
     return;
   }
 
@@ -204,62 +171,39 @@ static void LuaIO_dns_queryA_callback(void* data,
     lua_pushnil(L);
     lua_pushinteger(L, rc);
     LuaIO_resume(L, 2);
-    LuaIO_pfree(&LuaIO_dns_arg_pool, arg);
     return;
   }
 
-  LuaIO_hash_str_set(LuaIO_dns_ipv4_cache, arg->name, arg->len, host);
   LuaIO_dns_host2addrs(L, host);
   lua_pushinteger(L, 0);
+  ares_free_hostent(host);
   LuaIO_resume(L, 2);
-  LuaIO_pfree(&LuaIO_dns_arg_pool, arg);
 }
 
 static int LuaIO_dns_queryA(lua_State* L) {
-  size_t n;
-  const char* name = luaL_checklstring(L, 1, &n);
-
-  struct hostent* host = (struct hostent*)LuaIO_hash_str_get(LuaIO_dns_ipv4_cache, name, n);
-  if (host) {
-    LuaIO_dns_host2addrs(L, host);
-    lua_pushinteger(L, 0);
-    return 2;
-  }
-  
-  LuaIO_dns_arg_t* arg = LuaIO_palloc(&LuaIO_dns_arg_pool, sizeof(LuaIO_dns_arg_t));
-  if (!arg) {
-    lua_pushnil(L);
-    lua_pushinteger(L, UV_ENOMEM);
-    return 2;
-  }
-
-  arg->L = L;
-  arg->len = n;
-  arg->name = LuaIO_strndup(name, n);
+  const char* name = luaL_checkstring(L, 1);
 
   ares_query(LuaIO_ares_channel,
              name,
              ns_c_in,
              ns_t_a,
              LuaIO_dns_queryA_callback,
-             arg);
+             L);
 
   return lua_yield(L, 0);
 }
 
-static void LuaIO_dns_queryAaaa_callback(void* data, 
+static void LuaIO_dns_queryAaaa_callback(void* arg, 
                                          int status, 
                                          int timeouts, 
                                          unsigned char* buf,
                                          int len) {
-  LuaIO_dns_arg_t* arg = (LuaIO_dns_arg_t*)data;
-  lua_State* L = arg->L;
+  lua_State* L = arg;
 
   if (status != ARES_SUCCESS) {
     lua_pushnil(L);
     lua_pushinteger(L, status);
     LuaIO_resume(L, 2);
-    LuaIO_pfree(&LuaIO_dns_arg_pool, arg);
     return;
   }
 
@@ -269,45 +213,24 @@ static void LuaIO_dns_queryAaaa_callback(void* data,
     lua_pushnil(L);
     lua_pushinteger(L, rc);
     LuaIO_resume(L, 2);
-    LuaIO_pfree(&LuaIO_dns_arg_pool, arg);
     return;
   }
 
-  LuaIO_hash_str_set(LuaIO_dns_ipv6_cache, arg->name, arg->len, host);
   LuaIO_dns_host2addrs(L, host);
   lua_pushinteger(L, 0);
+  ares_free_hostent(host);
   LuaIO_resume(L, 2);
-  LuaIO_pfree(&LuaIO_dns_arg_pool, arg);
 }
 
 static int LuaIO_dns_queryAaaa(lua_State* L) {
-  size_t n;
-  const char* name = luaL_checklstring(L, 1, &n);
-
-  struct hostent* host = (struct hostent*)LuaIO_hash_str_get(LuaIO_dns_ipv6_cache, name, n);
-  if (host) {
-    LuaIO_dns_host2addrs(L, host);
-    lua_pushinteger(L, 0);
-    return 2;
-  }
-  
-  LuaIO_dns_arg_t* arg = LuaIO_palloc(&LuaIO_dns_arg_pool, sizeof(LuaIO_dns_arg_t));
-  if (!arg) {
-    lua_pushnil(L);
-    lua_pushinteger(L, UV_ENOMEM);
-    return 2;
-  }
-
-  arg->L = L;
-  arg->len = n;
-  arg->name = LuaIO_strndup(name, n);
+  const char* name = luaL_checkstring(L, 1);
 
   ares_query(LuaIO_ares_channel,
              name,
              ns_c_in,
              ns_t_aaaa,
              LuaIO_dns_queryAaaa_callback,
-             arg);
+             L);
 
   return lua_yield(L, 0);
 }

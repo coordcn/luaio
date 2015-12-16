@@ -36,17 +36,13 @@ static char LuaIO_tcp_socket_metatable_key;
     return luaL_argerror(L, 1, "socket:"#name" error: socket must be [userdata](socket)\n"); \
   }
 
-/*local socket = tcp.new(timeout)*/
+/*local socket, err = tcp.new()*/
 static int LuaIO_tcp_socket_new(lua_State* L) {
-  lua_Integer timeout = luaL_checkinteger(L, 1);
-  if (timeout < 0) {
-    return luaL_argerror(L, 1, "tcp.new(timeout) error: timeout must be >= 0\n");
-  }
-
   LuaIO_tcp_socket_t* socket = lua_newuserdata(L, sizeof(LuaIO_tcp_socket_t));
   if (socket == NULL) {
     lua_pushnil(L);
-    return 1;
+    lua_pushinteger(L, UV_ENOMEM);
+    return 2;
   }
 
   uv_loop_t* loop = uv_default_loop();
@@ -57,7 +53,7 @@ static int LuaIO_tcp_socket_new(lua_State* L) {
   socket->thread = L;
   socket->current_thread = L;
   socket->read_buffer = NULL;
-  socket->timeout = timeout;
+  socket->timeout = 0;
   socket->onconnect_ref = LUA_NOREF;
   socket->thread_ref = LUA_NOREF;
   socket->write_data_ref = LUA_NOREF;
@@ -67,7 +63,8 @@ static int LuaIO_tcp_socket_new(lua_State* L) {
   lua_rawget(L, LUA_REGISTRYINDEX);
   lua_setmetatable(L, -2);
 
-  return 1;
+  lua_pushinteger(L, 0);
+  return 2;
 }
 
 #define LuaIO_tcp_check_port_and_host(L, name) \
@@ -217,7 +214,7 @@ static int LuaIO_tcp_socket_fd(lua_State* L) {
   return 1;
 }
 
-/*socket:setReadBuffer(buffer)*/
+/*socket:set_read_buffer(buffer)*/
 static int LuaIO_tcp_socket_set_read_buffer(lua_State* L) {
   LuaIO_tcp_check_socket(L, read(buffer));
 
@@ -301,7 +298,7 @@ static int LuaIO_tcp_socket_read(lua_State* L) {
   return lua_yield(L, 0);
 }
 
-/*socket:setWriteCallback(callback)*/
+/*socket:set_write_callback(callback)*/
 static int LuaIO_tcp_socket_set_write_callback(lua_State* L) {
   LuaIO_tcp_check_socket(L, read(buffer));
 
@@ -368,6 +365,8 @@ static void LuaIO_tcp_socket_after_write(uv_write_t* req, int status) {
   uv_timer_stop(&socket->timer);
   luaL_unref(L, LUA_REGISTRYINDEX, socket->write_data_ref);
 
+  if (status == 0) return;
+
   lua_rawgeti(L, LUA_REGISTRYINDEX, socket->write_callback_ref);
   lua_pushinteger(L, status);
   LuaIO_pcall(L, 1);
@@ -432,7 +431,7 @@ static int LuaIO_tcp_socket_write(lua_State* L) {
   return 2;
 }
 
-/*local addr, err = socket:localAddress()*/
+/*local addr, err = socket:local_address()*/
 static int LuaIO_tcp_socket_local_address(lua_State* L) {
   LuaIO_tcp_check_socket(L, localAddress());
 
@@ -449,7 +448,7 @@ static int LuaIO_tcp_socket_local_address(lua_State* L) {
   return 2;
 }
 
-/*local addr, err = socket:remoteAddress()*/
+/*local addr, err = socket:remote_address()*/
 static int LuaIO_tcp_socket_remote_address(lua_State* L) {
   LuaIO_tcp_check_socket(L, remoteAddress());
 
@@ -466,7 +465,7 @@ static int LuaIO_tcp_socket_remote_address(lua_State* L) {
   return 2;
 }
 
-/*socket:setTimeout(timeout)*/
+/*socket:set_timeout(timeout)*/
 static int LuaIO_tcp_socket_set_timout(lua_State* L) {
   LuaIO_tcp_check_socket(L, setTimeout(timeout));
 
@@ -479,7 +478,7 @@ static int LuaIO_tcp_socket_set_timout(lua_State* L) {
   return 0;
 }
 
-/*local err = socket:setNodelay(enable)*/
+/*local err = socket:set_nodelay(enable)*/
 static int LuaIO_tcp_socket_set_nodelay(lua_State* L) {
   LuaIO_tcp_check_socket(L, setNodelay(enable));
 
@@ -490,12 +489,15 @@ static int LuaIO_tcp_socket_set_nodelay(lua_State* L) {
   return 1;
 }
 
-/*local err = socket:setKeepalive(enable, delay)*/
+/*local err = socket:set_keepalive(enable, delay)*/
 static int LuaIO_tcp_socket_set_keepalive(lua_State* L) {
   LuaIO_tcp_check_socket(L, setKeepalive(enable, delay));
 
+  int delay = 0;
   int enable = lua_toboolean(L, 2);
-  int delay = luaL_checkinteger(L, 3);
+  if (enable) {
+    delay = luaL_checkinteger(L, 3);
+  }
   int err = uv_tcp_keepalive(&socket->handle, enable, delay);
 
   lua_pushinteger(L, err);
@@ -568,7 +570,7 @@ static int LuaIO_tcp_socket_close(lua_State* L) {
   return 0;
 }
 
-/*tcp.isIP(string)*/
+/*tcp.is_ip(string)*/
 static int LuaIO_tcp_is_ip(lua_State* L) {
   const char* ip = luaL_checkstring(L, 1);
   char addr[sizeof(struct in6_addr)];
@@ -639,7 +641,7 @@ int luaopen_tcp(lua_State *L) {
 
   luaL_Reg lib[] = {
     { "new", LuaIO_tcp_socket_new },
-    { "isIP", LuaIO_tcp_is_ip },
+    { "is_ip", LuaIO_tcp_is_ip },
     { "__newindex", LuaIO_cannot_change },
     { NULL, NULL}
   };

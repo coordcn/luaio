@@ -54,7 +54,7 @@ static int LuaIO_read_buffer_new(lua_State* L) {
   lua_setmetatable(L, -2);
 
   lua_pushinteger(L, 0);
-  return 1;
+  return 2;
 }
 
 /* local data, err = buffer:read(n)  read n bytes data

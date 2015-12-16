@@ -27,7 +27,7 @@ static int LuaIO_write_buffer_new(lua_State* L) {
   if (buffer == NULL) {
     lua_pushnil(L);
     lua_pushinteger(L, UV_ENOMEM);
-    return 1;
+    return 2;
   }
 
   size_t capacity;
@@ -36,7 +36,7 @@ static int LuaIO_write_buffer_new(lua_State* L) {
     lua_pop(L, 1);
     lua_pushnil(L);
     lua_pushinteger(L, UV_ENOMEM);
-    return 1;
+    return 2;
   }
 
   buffer->type = LUAIO_TYPE_WRITE_BUFFER;
@@ -54,7 +54,7 @@ static int LuaIO_write_buffer_new(lua_State* L) {
   lua_setmetatable(L, -2);
 
   lua_pushinteger(L, 0);
-  return 1;
+  return 2;
 }
 
 /* local err = buffer:write(str) write string */
