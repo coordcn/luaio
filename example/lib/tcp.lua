@@ -1,8 +1,10 @@
 local tcp_native = require('tcp_native')
+local fs_native = require('fs_native')
 local dns = require('dns')
 local process = require('process')
 local Object = require('object')
 local Readable = require('readable')
+local ERRNO = require('errno')
 
 local Socket = Readable:extend()
 
@@ -12,12 +14,13 @@ local Socket = Readable:extend()
 -- @return: err {integer}
 function Socket:init(size)
   local buffer_size = size or 16384
-  local err = Readable:init(self, buffer_size)
-  if err ~= 0 then
-    return err
-  end
+  local err = Readable.init(self, buffer_size)
+  if err ~= 0 then return err end
 
+  self.errno = 0
   self.write_bytes = 0
+  self.writing = 0
+  self.closing = false
   self.closed = false
 
   return 0
@@ -26,27 +29,33 @@ end
 -- @example: instance:_set_handle(handle, server)
 function Socket:_set_handle(handle, server)
   handle:set_read_buffer(self.read_buffer)
-  handle:set_write_callback(function(err)
-    self:close()
+  handle:set_write_callback(function(status)
+    if status <  0 then
+      self.errno = status
+      self:close()
+    end
+
+    self.writing = self.writing - 1
+    if self.writing == 0 then
+      if self.closing then self.close() end
+    end
   end)
 
+  self.fd = handle:fd()
   self.handle = handle
   self.server = server
 end
 
 function Socket:connect(port, host)
-  if self.closed then
-    error('closed, unavaliable')
-  end
+  if self.closed then error('closed, unavaliable') end
+  if self.closing then error('closing, unavaliable') end
 
   if self.handle then
     error('socket has been connected, can not connect in this socket')
   end
 
   local handle, err = tcp_native.new()
-  if err ~= 0 then
-    return err
-  end
+  if err ~= 0 then return err end
 
   local family = tcp_native.is_ip(host)
   if family then
@@ -80,41 +89,47 @@ function Socket:connect(port, host)
     end
   end
 
-  handle:set_read_buffer(self.read_buffer)
-  handle:set_write_callback(function(err)
-    self:close()
-  end)
-
-  self.handle = handle
+  self._set_handle(handle, nil)
   return 0
 end
 
 -- @example: local err = instance:_read()
 -- @return: err {integer}
 function Socket:_read()
+  if self.closing then error('closing, unavaliable') end 
+
   if not self.handle then
     error('not connected, please call socket:connect(port, host) first')
   end
 
-  return self.handle:read()
+  local err =  self.handle:read()
+  self.errno = err
+
+  return err
 end
 
 -- @example: local err = instance:write(data)
 -- @param: data {string|buffer|table[array(string|buffer)]}
 -- @return: err {integer}
 function Socket:write(data)
-  if self.closed then
-    error('closed, unavaliable')
-  end
+  if self.closed then error('closed, unavaliable') end
+  if self.closing then error('closing, unavaliable') end
 
   if not self.handle then
     error('not connected, please call socket:connect(port, host) first')
   end
 
   local bytes, err = self.handle:write(data)
-  if bytes > 0 then
-    self.write_bytes = self.write + bytes
+  if err == 0 then
+    self.writing = self.writing + 1
   end
+
+  if bytes > 0 then
+    self.write_bytes = self.write_bytes + bytes
+  end
+
+  if err == 1 then err = 0 end
+  self.errno = err
 
   return err
 end
@@ -125,12 +140,30 @@ function Socket:bytesWritten()
   return self.write_bytes
 end
 
+-- @example: local err = instance:sendfile(fd, offset, length)
+-- @param: fd {integer}
+-- @param: offset {integer}
+-- @param: length {integer}
+-- @return: err {integer}
+function Socket:sendfile(fd, offset, length)
+  if self.closed then error('closed, unavaliable') end
+  if self.closing then error('closing, unavaliable') end
+
+  if not self.fd then
+    error('not connected, please call socket:connect(port, host) first')
+  end
+
+  local err = fs_natives.sendfile(self.fd, fd, offset, length)
+  self.errno = err
+
+  return err
+end
+
 -- @example: instance:setTimeout(ms)
 -- @param: ms {integer}
 function Socket:setTimeout(ms)
-  if self.closed then
-    error('closed, unavaliable')
-  end
+  if self.closed then error('closed, unavaliable') end
+  if self.closing then error('closing, unavaliable') end
 
   if not self.handle then
     error('not connected, please call socket:connect(port, host) first')
@@ -143,9 +176,8 @@ end
 -- @param: enable {boolean}
 -- @return: err {integer}
 function Socket:setNodelay(enable)
-  if self.closed then
-    error('closed, unavaliable')
-  end
+  if self.closed then error('closed, unavaliable') end
+  if self.closing then error('closing, unavaliable') end
 
   if not self.handle then
     error('not connected, please call socket:connect(port, host) first')
@@ -159,9 +191,8 @@ end
 -- @param: idle {integer}
 -- @return: err {integer}
 function Socket:setKeepalive(enable, idle)
-  if self.closed then
-    error('closed, unavaliable')
-  end
+  if self.closed then error('closed, unavaliable') end
+  if self.closing then error('closing, unavaliable') end
 
   if not self.handle then
     error('not connected, please call socket:connect(port, host) first')
@@ -187,9 +218,7 @@ function Socket:localAddress()
   end
 
   local addr, err = self.handle:local_address()
-  if err ~= 0 then
-    return nil
-  end
+  if err < 0 then return nil end
 
   self._local_address = addr
   return addr
@@ -207,34 +236,46 @@ function Socket:remoteAddress()
   end
 
   local addr, err = self.handle:remote_address()
-  if err ~= 0 then
-    return nil
-  end
+  if err < 0 then return nil end
 
   self._remote_address = addr
   return addr
 end
 
 function Socket:close()
-  if self.closed then
-    return 0
+  if self.closed then return end
+
+  if self.errno < 0 then
+    self:_close()
+    return
   end
 
-  local err = 0
-  if self.handle then
-    err  = self.handle:close()
+  -- Socket:write(data) is async function base on callback
+  -- normal close should wait for all callback called
+  if self.writing > 0 then
+    self.closing = true
+    return
   end
 
+  self:_close()
+end
+
+function Socket:_close()
   if self.server then
     self.server:_decrease_connections()
   end
 
-  self.handle = nil
+  -- do not set self.handle to nil
+  -- if do this, handle(userdata) memory maybe free by lua 
+  -- the close callback function will access invalid memory
   self.server = nil
   self.read_buffer = nil
   self.closed = true
+  self:emit('close')
 
-  return err
+  if self.handle then
+    self.handle:close()
+  end
 end
 
 local Server = Object:extend()
@@ -293,18 +334,14 @@ function Server:init(port, onconnect, options)
   local err = 0
 
   local handle_, err = tcp_native.new()
-  if err ~= 0 then
-    return err 
-  end
+  if err ~= 0 then return err end
 
   if not options.host then
     err = handle_:bind(port, '::', options.reuseport)
     if err ~= 0 then
       handle_:close()
       handle, err = tcp_native.new()
-      if err ~= 0 then
-        return err
-      end
+      if err ~= 0 then return err end
 
       err = handle:bind(port, '0.0.0.0', options.reuseport)
       if err ~= 0 then
@@ -330,7 +367,7 @@ function Server:init(port, onconnect, options)
       return
     end
 
-    local socket = Socket:new(self.bufferSize)
+    local socket, err = Socket:new(self.bufferSize)
     socket:_set_handle(client_handle, self)
     socket:setTimeout(self.timeout)
     socket:setNodelay(self.nodelay)
@@ -357,9 +394,7 @@ end
 -- @return: address {table} @Socket:localAddress
 -- @return: err {integer}
 function Server:address()
-  if self.closed then
-    error('closed, unavaliable')
-  end
+  if self.closed then error('closed, unavaliable') end
 
   return self.handle:local_address()
 end
@@ -381,18 +416,12 @@ function Server:quit()
   self.quit = true
 end
 
--- @example: local err = instance:close()
--- @return: err {integer}
+-- @example: instance:close()
 function Server:close()
-  if self.closed then
-    return 0
-  end
+  if self.closed then return end
 
-  local err  = self.handle:close()
-  self.handle = nil
   self.closed = true
-
-  return err
+  self.handle:close()
 end
 
 local tcp = {}
@@ -403,9 +432,7 @@ end
 
 tcp.connect = function(port, host, buffer_size)
   local socket, err = Socket:new(buffer_size)
-  if err ~= 0 then
-    return nil, err
-  end
+  if err ~= 0 then return nil, err end
 
   err = socket:connect(port, host)
   if err ~= 0 then
@@ -416,6 +443,11 @@ tcp.connect = function(port, host, buffer_size)
   return socket, err
 end
 
+-- @example: local ret = tcp.isIP(ip)
+-- @return: ret {integer}
+--    if ret == 0 then unknown address family
+--    if ret == 4 then IPv4
+--    if ret == 6 then IPv6
 tcp.isIP = function(ip)
   return tcp_native.is_ip(ip)
 end

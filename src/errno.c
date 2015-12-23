@@ -30,7 +30,13 @@
   XX(ENOTINITIALIZED, "c-ares library initialization not yet performed")    \
   XX(ELOADIPHLPAPI, "error loading iphlpapi.dll")                           \
   XX(EADDRGETNETWORKPARAMS, "could not find GetNetworkParams function")     \
-  XX(ECANCELLED, "DNS query cancelled")                                      \
+  XX(ECANCELLED, "DNS query cancelled")                                     \
+
+enum LuaIO_ares_errno {
+#define XX(name, _) LUAIO_ARES_##name = ARES_##name + LUAIO_ARES_MAGIC,
+  ARES_ERRNO_MAP(XX)
+#undef XX
+};
 
 #define UV_ERRSTR_GEN(name, str) \
   case UV_##name: \
@@ -38,7 +44,7 @@
     break;
 
 #define ARES_ERRSTR_GEN(name, str) \
-  case ARES_##name: \
+  case LUAIO_ARES_##name: \
     msg = str; \
     break;
 
@@ -85,7 +91,7 @@ static void LuaIO_errno_setup_constants(lua_State* L) {
 #undef UV_ERRNO_GEN
 
 #define ARES_ERRNO_GEN(name, _) \
-  lua_pushinteger(L, ARES_##name); \
+  lua_pushinteger(L, LUAIO_ARES_##name); \
   lua_setfield(L, -2, "ARES_"#name);
 
   ARES_ERRNO_MAP(ARES_ERRNO_GEN)

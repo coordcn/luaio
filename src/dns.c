@@ -160,7 +160,7 @@ static void LuaIO_dns_queryA_callback(void* arg,
 
   if (status != ARES_SUCCESS) {
     lua_pushnil(L);
-    lua_pushinteger(L, status);
+    lua_pushinteger(L, status + LUAIO_ARES_MAGIC);
     LuaIO_resume(L, 2);
     return;
   }
@@ -169,7 +169,7 @@ static void LuaIO_dns_queryA_callback(void* arg,
   int rc = ares_parse_a_reply(buf, len, &host, NULL, NULL);
   if (rc != ARES_SUCCESS) {
     lua_pushnil(L);
-    lua_pushinteger(L, rc);
+    lua_pushinteger(L, rc + LUAIO_ARES_MAGIC);
     LuaIO_resume(L, 2);
     return;
   }
@@ -202,7 +202,7 @@ static void LuaIO_dns_queryAaaa_callback(void* arg,
 
   if (status != ARES_SUCCESS) {
     lua_pushnil(L);
-    lua_pushinteger(L, status);
+    lua_pushinteger(L, status + LUAIO_ARES_MAGIC);
     LuaIO_resume(L, 2);
     return;
   }
@@ -211,7 +211,7 @@ static void LuaIO_dns_queryAaaa_callback(void* arg,
   int rc = ares_parse_aaaa_reply(buf, len, &host, NULL, NULL);
   if (rc != ARES_SUCCESS) {
     lua_pushnil(L);
-    lua_pushinteger(L, rc);
+    lua_pushinteger(L, rc + LUAIO_ARES_MAGIC);
     LuaIO_resume(L, 2);
     return;
   }

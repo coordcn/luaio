@@ -9,15 +9,12 @@ local Readable = Emitter:extend()
 -- @param: size {integer}
 -- @return: err {integer}
 function Readable:init(size)
-  local read_buffer, err = ReadBuffer:new(size)
-  if err ~= 0 then
-    return err
-  end
+  local read_buffer, err = ReadBuffer.new(size)
+  if err ~= 0 then return err end
 
   self.read_buffer = read_buffer
   self.read_bytes = 0
   self.closed = false
-
   return 0
 end
 
@@ -34,18 +31,9 @@ end
 -- @example: instance:discard([n])
 -- @param: n {integer} if n == nil read the rest data in the buffer
 function Readable:discard(n)
-  if self.closed then
-    error('closed, can not use')
-  end
-
-  if self.read_bytes == 0 then
-    return 
-  end
-
-  if n == nil then
-    n = -1 
-  end
-
+  if self.closed then error('closed, unavaliable') end
+  if self.read_bytes == 0 then return end
+  if n == nil then n = -1 end
   self.read_buffer:discard(n)
 end
 
@@ -54,39 +42,26 @@ end
 -- @return: data {string}
 -- @return: err {integer}
 function Readable:read(n)
-  if self.closed then
-    error('closed, can not use')
-  end
+  if self.closed then error('closed, unavaliable') end
 
   local ret
   if self.read_bytes == 0 then
     ret = self:_read()
-    if ret < 0 then
-      return nil, ret
-    end
+    if ret < 0 then return nil, ret end
     self.read_bytes = self.read_bytes + ret
   end
   
-  if n == nil then
-    n = -1 
-  end
-
+  if n == nil then n = -1 end
   local val, err = self.read_buffer:read(n)
-  if err >= 0 then
-    return val, err
-  end
+  if err > 0 then return val, err end
 
   while true do
     ret = self:_read()
-    if ret < 0 then
-      return nil, ret
-    end
+    if ret < 0 then return nil, ret end
     self.read_bytes = self.read_bytes + ret
 
     val, err = self.read_buffer:read(n)
-    if err >= 0 then
-      return val, err
-    end
+    if err >= 0 then return val, err end
   end
 end
 
@@ -94,40 +69,28 @@ end
 -- @return: data {string}
 -- @return: err {integer}
 function Readable:readline()
-  if self._closed then
-    error('closed, can not use')
-  end
+  if self.closed then error('closed, unavaliable') end
 
   local ret
   if self.read_bytes == 0 then
     ret = self:_read()
-    if ret < 0 then
-      return nil, ret
-    end
+    if ret < 0 then return nil, ret end
     self.read_bytes = self.read_bytes + ret
   end
   
   local val, err = self.read_buffer:readline()
-  if err >= 0 then
-    return val, err
-  end
-
+  if err > 0 then return val, err end
   if err == ERRNO.LUAIO_EXCEED_BUFFER_CAPACITY then
     return val, err
   end
 
   while true do
     ret = self:_read()
-    if ret < 0 then 
-      return nil, ret
-    end
+    if ret < 0 then return nil, ret end
     self.read_bytes = self.read_bytes + ret
 
     val, err = self.read_buffer:readline()
-    if err >= 0 then
-      return val, err
-    end
-
+    if err >= 0 then return val, err end
     if err == ERRNO.LUAIO_EXCEED_BUFFER_CAPACITY then
       return val, err
     end
@@ -138,37 +101,26 @@ end
 -- @return: ret {integer|number}
 -- @return: err {integer}
 function Readable:_readCommonType(name)
-  if self.closed then
-    error('closed, can not use')
-  end
-
-  local func = ReadBuffer[name]
+  if self.closed then error('closed, unavaliable') end
 
   local ret
+  local func = ReadBuffer[name]
   if self.read_bytes == 0 then
     ret = self:_read()
-    if ret < 0 then
-      return nil, ret
-    end
+    if ret < 0 then return nil, ret end
     self.read_bytes = self.read_bytes + ret
   end
   
   local val, err = func(self.read_buffer)
-  if err >= 0 then
-    return val, err
-  end
+  if err > 0 then return val, err end
 
   while true do
     ret = self:_read()
-    if ret < 0 then
-      return nil, ret
-    end
+    if ret < 0 then return nil, ret end
     self.read_bytes = self.read_bytes + ret
 
     val, err = func(self.read_buffer)
-    if err >= 0 then
-      return val, err
-    end
+    if err > 0 then return val, err end
   end
 end
 

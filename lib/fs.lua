@@ -21,10 +21,7 @@ local fs = {}
 --    if mode == 'rwx' test F_OK, R_OK, W_OK, X_OK
 -- @return: ret {integer} if ret < 0 ret is errno
 function fs.access(path, mode)
-  if mode == nil then
-    mode = 0
-  end
-
+  if mode == nil then mode = 0 end
   return fs_native.access(path, mode)
 end
 
@@ -41,14 +38,9 @@ end
 -- @param: mode {integer}
 -- @return: ret {integer}  if ret < 0 ret is errno else ret is fd
 function fs.open(path, flags, mode)
-  if flags == nil then
-    flags = 'r'
-  end
-
-  if mode == nil then
-    mode = 438 -- 0666
-  end
-
+  if flags == nil then flags = 'r' end
+  -- 0666
+  if mode == nil then mode = 438 end
   return fs_native.open(path, flags, mode)
 end
 
@@ -58,10 +50,8 @@ end
 -- @param: offset {integer}
 -- @return: ret {integer} if ret < 0 ret is errno else ret is read bytes
 function fs.read(fd, buffer, offset)
-  if offset == nil then
-    offset = -1 -- read from the current position
-  end
-
+  -- read from the current position
+  if offset == nil then offset = -1 end
   return fs_native.read(fd, buffer, offset)
 end
 
@@ -71,10 +61,8 @@ end
 -- @param: offset {integer}
 -- @return: ret {integer} if ret < 0 ret is errno else ret is write bytes
 function fs.write(fd, data, offset)
-  if offset == nil then
-    offset = -1 -- append
-  end
-
+  -- append
+  if offset == nil then offset = -1 end
   return fs_native.write(fd, data, offset)
 end
 
@@ -105,10 +93,7 @@ end
 -- @param: mode {integer}
 -- @return: err {integer}
 function fs.mkdir(path, mode)
-  if mode == nil then
-    mode = 511
-  end
-
+  if mode == nil then mode = 511 end
   return fs_native.mkdir(path, mode)
 end
 
@@ -272,14 +257,9 @@ end
 -- @return: err {integer}
 function fs.truncate(path, length)
   local fd = fs_native.open(path, 'r+', 438)
-  if fd < 0 then 
-    return fd 
-  end
+  if fd < 0 then return fd end
 
-  if length == nil then
-    length = 0
-  end
-
+  if length == nil then length = 0 end
   local ret = fs_native.ftruncate(fd, length)
   local err = fs.native.close(fd)
 
@@ -295,10 +275,7 @@ end
 -- @param: length {integer}
 -- @return: err {integer}
 function fs.ftruncate(fd, length)
-  if length == nil then
-    length = 0
-  end
-
+  if length == nil then length = 0 end
   return fs_native.ftruncate(fd, length)
 end
 
@@ -350,16 +327,12 @@ function ReadStream:init(path, options)
   end
 
   local err = Readable.init(self, options.bufferSize)
-  if err then
-    return err
-  end
+  if err then return err end
 
   self.fd = options.fd
   if not self.fd then
     local ret = fs_native.open(path, options.flags, options.mode)
-    if ret < 0 then
-      return ret
-    end
+    if ret < 0 then return ret end
     self.fd = ret
   end
 
@@ -383,9 +356,7 @@ end
 -- @example: local err = instance:close()
 -- @return: err {integer}
 function ReadStream:close()
-  if self.closed then
-    return 0
-  end
+  if self.closed then return 0 end
 
   local err = 0
   if self.fd then
@@ -395,7 +366,6 @@ function ReadStream:close()
 
   self.read_buffer = nil
   self.closed = true
-
   return err
 end
 
@@ -411,7 +381,7 @@ function fs.createReadStream(path, options)
 end
 
 local write_options = {
-  flags = 'r',
+  flags = 'w',
   mode = 438,
   fd = nil,
   offset = nil
@@ -444,9 +414,7 @@ function WriteStream:init(path, options)
   self.fd = options.fd
   if not self.fd then
     local ret = fs_native.open(path, options.flags, options.mode)
-    if ret < 0 then
-      return ret
-    end
+    if ret < 0 then return ret end
     self.fd = ret
   end
 
@@ -461,9 +429,7 @@ end
 -- @param: data {string|buffer|table[array(string|buffer)]}
 -- @return: err {integer}
 function WriteStream:write(data)
-  if self.closed then
-    error('closed, can not use')
-  end
+  if self.closed then error('closed, unavaliable') end
 
   local ret = fs.write(self.fd, data, self.offset)
   if ret > 0 then
@@ -485,9 +451,7 @@ end
 -- @example: local err = instance:close()
 -- @return: err {integer}
 function WriteStream:close()
-  if self.closed then
-    return 0
-  end
+  if self.closed then return 0 end
 
   local err = 0
   if self.fd then

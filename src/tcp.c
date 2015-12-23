@@ -121,7 +121,16 @@ static void LuaIO_tcp_server_onconnect(uv_stream_t* handle, int status) {
   }
 
   uv_loop_t* loop = uv_default_loop();
-  uv_tcp_init(loop, &socket->handle);
+  uv_tcp_t* client_handle = &socket->handle;
+  uv_tcp_init(loop, client_handle);
+  int err = uv_accept(handle, (uv_stream_t*)client_handle);
+  if (err) {
+    luaL_unref(L, LUA_REGISTRYINDEX, thread_ref);
+    uv_close((uv_handle_t*)(client_handle), NULL);
+    fprintf(stderr, "server onconnect error: %s\n", uv_strerror(err));
+    return;
+  }
+
   uv_timer_init(loop, &socket->timer);
 
   socket->type = LUAIO_TYPE_SOCKET;
@@ -277,6 +286,10 @@ static void LuaIO_tcp_socket_onread(uv_stream_t* handle, ssize_t nread, const uv
   uv_read_stop((uv_stream_t*)(&socket->handle));
   uv_timer_stop(&socket->timer);
 
+  if (nread > 0) {
+    socket->read_buffer->write_pos += nread;
+  }
+
   lua_pushinteger(L, nread);
   LuaIO_resume(L, 1);
 }
@@ -365,8 +378,6 @@ static void LuaIO_tcp_socket_after_write(uv_write_t* req, int status) {
   uv_timer_stop(&socket->timer);
   luaL_unref(L, LUA_REGISTRYINDEX, socket->write_data_ref);
 
-  if (status == 0) return;
-
   lua_rawgeti(L, LUA_REGISTRYINDEX, socket->write_callback_ref);
   lua_pushinteger(L, status);
   LuaIO_pcall(L, 1);
@@ -398,7 +409,8 @@ static int LuaIO_tcp_socket_write(lua_State* L) {
     }
 
     lua_pushinteger(L, written);
-    lua_pushinteger(L, 0);
+    /*uv_try_write send all data*/
+    lua_pushinteger(L, 1);
     return 2;
   }
 
@@ -466,10 +478,10 @@ static int LuaIO_tcp_socket_remote_address(lua_State* L) {
 }
 
 /*socket:set_timeout(timeout)*/
-static int LuaIO_tcp_socket_set_timout(lua_State* L) {
+static int LuaIO_tcp_socket_set_timeout(lua_State* L) {
   LuaIO_tcp_check_socket(L, setTimeout(timeout));
 
-  lua_Integer timeout = luaL_checkinteger(L, 1);
+  lua_Integer timeout = luaL_checkinteger(L, 2);
   if (timeout < 0) {
     return luaL_argerror(L, 1, "socket:setTimeout(timeout) error: timeout must be >= 0\n");
   }
@@ -620,7 +632,7 @@ int luaopen_tcp(lua_State *L) {
   lua_pushcfunction(L, LuaIO_tcp_socket_remote_address);
   lua_setfield(L, -2, "remote_address");
 
-  lua_pushcfunction(L, LuaIO_tcp_socket_set_timout);
+  lua_pushcfunction(L, LuaIO_tcp_socket_set_timeout);
   lua_setfield(L, -2, "set_timeout");
 
   lua_pushcfunction(L, LuaIO_tcp_socket_set_nodelay);

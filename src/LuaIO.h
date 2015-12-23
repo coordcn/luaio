@@ -26,6 +26,7 @@
 #define CRLF "\r\n"
 
 /*errno*/
+#define LUAIO_ARES_MAGIC                    -16834
 #define LUAIO_EAGAIN                        -9527
 #define LUAIO_EXCEED_BUFFER_CAPACITY        -9528
 
@@ -41,7 +42,7 @@
 #define LUAIO_TYPE_READ_BUFFER        4
 #define LUAIO_TYPE_WRITE_BUFFER       6 
 
-#define LuaIO_is_buffer(type) LuaIO_check_bit(type, 3)
+#define LuaIO_is_buffer(type) LuaIO_check_bit(type, 2)
 
 /*init.c*/
 lua_State* LuaIO_get_main_thread();

@@ -4,7 +4,7 @@
     "host_arch": "x64", 
     "LuaIO_prefix": "", 
     "uv_library": "static_library", 
-    "LuaIO_debug": "false", 
+    "LuaIO_debug": "true", 
     "target_arch": "x64"
   }, 
   "target_defaults": {

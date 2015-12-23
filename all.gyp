@@ -4,8 +4,8 @@
       'target_name': 'all',
       'type': 'none',
       'dependencies': [
-        'LuaIO.gyp:LuaIO'
+        'LuaIO.gyp:copy',
       ]
-    }
+    },
   ]
 }

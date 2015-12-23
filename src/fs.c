@@ -166,6 +166,7 @@ static void LuaIO_fs_create_stat(lua_State* L, const uv_stat_t* s) {
 static void LuaIO_fs_callback(uv_fs_t* req) {
   LuaIO_fs_req_t* fs_req = container_of(req, LuaIO_fs_req_t, req);
   lua_State* L = fs_req->current_thread;
+  int result = req->result;
 
   switch (req->fs_type) {
     case UV_FS_ACCESS:
@@ -187,15 +188,24 @@ static void LuaIO_fs_callback(uv_fs_t* req) {
     case UV_FS_FUTIME:
     case UV_FS_OPEN:
     case UV_FS_SENDFILE:
-    case UV_FS_READ:
-      lua_pushinteger(L, req->result);
+      lua_pushinteger(L, result);
       LuaIO_pfree(&LuaIO_fs_req_pool, fs_req);
       LuaIO_resume(L, 1);
-      break;
+      return;
+
+    case UV_FS_READ:
+      if (result > 0) {
+        fs_req->read_buffer->write_pos += result;
+      }
+
+      lua_pushinteger(L, result);
+      LuaIO_pfree(&LuaIO_fs_req_pool, fs_req);
+      LuaIO_resume(L, 1);
+      return;
 
     case UV_FS_WRITE:
-      if (req->result < 0) {
-        lua_pushinteger(L, req->result);
+      if (result < 0) {
+        lua_pushinteger(L, result);
       } else {
         lua_pushinteger(L, fs_req->bytes);
       }
@@ -203,14 +213,14 @@ static void LuaIO_fs_callback(uv_fs_t* req) {
       luaL_unref(L, LUA_REGISTRYINDEX, fs_req->write_data_ref);
       LuaIO_pfree(&LuaIO_fs_req_pool, fs_req);
       LuaIO_resume(L, 1);
-      break;
+      return;
 
     case UV_FS_STAT:
     case UV_FS_LSTAT:
     case UV_FS_FSTAT:
-      if (req->result < 0) {
+      if (result < 0) {
         lua_pushnil(L);
-        lua_pushinteger(L, req->result);
+        lua_pushinteger(L, result);
       } else {
         LuaIO_fs_create_stat(L, &req->statbuf);
         lua_pushinteger(L, 0);
@@ -218,12 +228,12 @@ static void LuaIO_fs_callback(uv_fs_t* req) {
 
       LuaIO_pfree(&LuaIO_fs_req_pool, fs_req);
       LuaIO_resume(L, 2);
-      break;
+      return;
 
     case UV_FS_MKDTEMP:
-      if (req->result < 0) {
+      if (result < 0) {
         lua_pushnil(L);
-        lua_pushinteger(L, req->result);
+        lua_pushinteger(L, result);
       } else {
         lua_pushstring(L, req->path);
         lua_pushinteger(L, 0);
@@ -231,12 +241,12 @@ static void LuaIO_fs_callback(uv_fs_t* req) {
 
       LuaIO_pfree(&LuaIO_fs_req_pool, fs_req);
       LuaIO_resume(L, 2);
-      break;
+      return;
 
     case UV_FS_READLINK:
-      if (req->result < 0) {
+      if (result < 0) {
         lua_pushnil(L);
-        lua_pushinteger(L, req->result);
+        lua_pushinteger(L, result);
       } else {
         lua_pushstring(L, (char*)req->ptr);
         lua_pushinteger(L, 0);
@@ -244,12 +254,12 @@ static void LuaIO_fs_callback(uv_fs_t* req) {
 
       LuaIO_pfree(&LuaIO_fs_req_pool, fs_req);
       LuaIO_resume(L, 2);
-      break;
+      return;
 
     case UV_FS_SCANDIR:
-      if (req->result < 0) {
+      if (result < 0) {
         lua_pushnil(L);
-        lua_pushinteger(L, req->result);
+        lua_pushinteger(L, result);
       } else {
         int ret;
         int err = 0;

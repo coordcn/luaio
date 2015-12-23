@@ -22,14 +22,10 @@ end
 
 function Emitter:emit(name, ...)
   local events = rawget(self, "events")
-  if not events then 
-    return 
-  end
+  if not events then return end
 
   local events_type = rawget(events, name)
-  if not events_type then
-    return
-  end
+  if not events_type then return end
 
   for i = 1, #events_type do
     events_type[i](...)

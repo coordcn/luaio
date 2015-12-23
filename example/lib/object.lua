@@ -31,9 +31,7 @@ function Object:new(...)
   if type(object.init) == "function" then
     local ret = object:init(...)
     -- zero means no error
-    if ret ~= 0 then
-      return nil, ret
-    end
+    if ret ~= 0 then return nil, ret end
   end
 
   return object, 0

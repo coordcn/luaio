@@ -29,11 +29,13 @@ void* LuaIO_pmemory__alloc(size_t size, size_t* capacity) {
     real_size = size + sizeof(LuaIO_pool_chunk_t);
     LuaIO_pool_chunk_t* chunk = LuaIO_memalign(LUAIO_PMEMORY_ALIGNMENT, real_size);
     if (!chunk) {
-      *capacity = 0;
       return NULL;
     }
 
-    *capacity = real_size;;
+    if (capacity != NULL) {
+      *capacity = real_size;
+    }
+
     chunk->magic = LUAIO_PMEMORY_MAGIC;
     return (void*)((char*)chunk + sizeof(LuaIO_pool_chunk_t));
   }
@@ -59,11 +61,13 @@ void* LuaIO_pmemory__alloc(size_t size, size_t* capacity) {
                               real_slot);
 
   if (!p) {
-    *capacity = 0;
     return NULL;
   }
 
-  *capacity = real_size;
+  if (capacity != NULL) {
+    *capacity = real_size;
+  }
+
   return p; 
 }
 

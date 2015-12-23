@@ -88,5 +88,28 @@
       ],
       'defines': [ 'BUNDLE=1' ]
     },
+    {
+      'target_name': 'copy',
+      'type': 'none',
+      'dependencies': [
+        'LuaIO',
+      ],
+      'copies': [
+        {
+          'destination': 'test/',
+          'files': [
+            'out/Debug/LuaIO',
+            'lib/',
+          ]
+        },
+        {
+          'destination': 'example/',
+          'files': [
+            'out/Debug/LuaIO',
+            'lib/',
+          ]
+        },
+      ],
+    },
   ],
 }
