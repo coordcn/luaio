@@ -69,7 +69,7 @@ static int LuaIO_buffer_read(lua_State* L) {
   int rest_size;
   char* read_pos;
   char* start;
-  if (n == -1) {
+  if (n < 0) {
     read_pos = buffer->read_pos;
     start = buffer->start;
     rest_size = buffer->write_pos - read_pos;
@@ -98,10 +98,6 @@ static int LuaIO_buffer_read(lua_State* L) {
 
   if (n > (lua_Integer)buffer->capacity) {
     return luaL_error(L, "buffer:read([n]) error: out of buffer capacity[%d]\n", buffer->capacity); 
-  }
-
-  if (n < -1) {
-    return luaL_argerror(L, 1, "buffer:read([n]) error: n must be >= -1\n");
   }
 
   read_pos = buffer->read_pos;
@@ -150,12 +146,11 @@ static int LuaIO_buffer_readline(lua_State* L) {
 
   while (pos < write_pos) {
     c = *pos;
+    pos++;
     if (c == '\n') {
       flag = 1;
       break;
     }
-      
-    pos++;
   }
 
   /* start   read_pos   \n   write_pos   end 
@@ -397,79 +392,38 @@ static int LuaIO_buffer_read_double_be(lua_State* L) {
 }
 
 int luaopen_read_buffer(lua_State *L) {
+  /*read buffer metatable*/
   lua_pushlightuserdata(L, &LuaIO_read_buffer_metatable_key);
+
   lua_createtable(L, 0, 24);
-  lua_pushcfunction(L, LuaIO_buffer_capacity);
-  lua_setfield(L, -2, "capacity");
-
-  lua_pushcfunction(L, LuaIO_buffer_discard);
-  lua_setfield(L, -2, "discard");
-
-  lua_pushcfunction(L, LuaIO_buffer_read);
-  lua_setfield(L, -2, "read");
-
-  lua_pushcfunction(L, LuaIO_buffer_readline);
-  lua_setfield(L, -2, "readline");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_uint8);
-  lua_setfield(L, -2, "read_uint8");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_int8);
-  lua_setfield(L, -2, "read_int8");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_uint16_le);
-  lua_setfield(L, -2, "read_uint16_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_uint16_be);
-  lua_setfield(L, -2, "read_uint16_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_uint32_le);
-  lua_setfield(L, -2, "read_uint32_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_uint32_be);
-  lua_setfield(L, -2, "read_uint32_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_uint64_le);
-  lua_setfield(L, -2, "read_uint64_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_uint64_be);
-  lua_setfield(L, -2, "read_uint64_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_int16_le);
-  lua_setfield(L, -2, "read_int16_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_int16_be);
-  lua_setfield(L, -2, "read_int16_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_int32_le);
-  lua_setfield(L, -2, "read_int32_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_int32_be);
-  lua_setfield(L, -2, "read_int32_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_int64_le);
-  lua_setfield(L, -2, "read_int64_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_int64_be);
-  lua_setfield(L, -2, "read_int64_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_float_le);
-  lua_setfield(L, -2, "read_float_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_float_be);
-  lua_setfield(L, -2, "read_float_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_double_le);
-  lua_setfield(L, -2, "read_double_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_read_double_be);
-  lua_setfield(L, -2, "read_double_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_gc);
-  lua_setfield(L, -2, "__gc");
+  LuaIO_function(LuaIO_buffer_capacity, "capacity")
+  LuaIO_function(LuaIO_buffer_discard, "discard")
+  LuaIO_function(LuaIO_buffer_read, "read")
+  LuaIO_function(LuaIO_buffer_readline, "readline")
+  LuaIO_function(LuaIO_buffer_read_uint8, "read_uint8")
+  LuaIO_function(LuaIO_buffer_read_int8, "read_int8")
+  LuaIO_function(LuaIO_buffer_read_uint16_le, "read_uint16_le")
+  LuaIO_function(LuaIO_buffer_read_uint16_be, "read_uint16_be")
+  LuaIO_function(LuaIO_buffer_read_uint32_le, "read_uint32_le")
+  LuaIO_function(LuaIO_buffer_read_uint32_be, "read_uint32_be")
+  LuaIO_function(LuaIO_buffer_read_uint64_le, "read_uint64_le")
+  LuaIO_function(LuaIO_buffer_read_uint64_be, "read_uint64_be")
+  LuaIO_function(LuaIO_buffer_read_int16_le, "read_int16_le")
+  LuaIO_function(LuaIO_buffer_read_int16_be, "read_int16_be")
+  LuaIO_function(LuaIO_buffer_read_int32_le, "read_int32_le")
+  LuaIO_function(LuaIO_buffer_read_int32_be, "read_int32_be")
+  LuaIO_function(LuaIO_buffer_read_int64_le, "read_int64_le")
+  LuaIO_function(LuaIO_buffer_read_int64_be, "read_int64_be")
+  LuaIO_function(LuaIO_buffer_read_float_le, "read_float_le")
+  LuaIO_function(LuaIO_buffer_read_float_be, "read_float_be")
+  LuaIO_function(LuaIO_buffer_read_double_le, "read_double_le")
+  LuaIO_function(LuaIO_buffer_read_double_be, "read_double_be")
+  LuaIO_function(LuaIO_buffer_gc, "__gc")
 
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
+
+  /*save read buffer metatable*/
   lua_rawset(L, LUA_REGISTRYINDEX);
 
   luaL_Reg lib[] = {

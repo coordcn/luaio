@@ -1,6 +1,8 @@
 local fs_native = require('fs_native')
+local ReadBuffer = require('read_buffer')
 local Object = require('object')
 local Readable = require('readable')
+local ERRNO = require('errno')
 
 local fs = {}
 
@@ -32,19 +34,19 @@ function fs.close(fd)
   return fs_native.close(fd)
 end
 
--- @example: local ret = fs.open(path[, flags, mode])
+-- @example: local ret = fs.open(path[, flag, mode])
 -- @param: path {string}
--- @param: flags {string}
+-- @param: flag {string}
 -- @param: mode {integer}
 -- @return: ret {integer}  if ret < 0 ret is errno else ret is fd
-function fs.open(path, flags, mode)
-  if flags == nil then flags = 'r' end
+function fs.open(path, flag, mode)
+  if flag == nil then flag = 'r' end
   -- 0666
   if mode == nil then mode = 438 end
-  return fs_native.open(path, flags, mode)
+  return fs_native.open(path, flag, mode)
 end
 
--- @example: local ret = fs.read(fd, buffer, pos)
+-- @example: local ret = fs.read(fd, buffer[, offset])
 -- @param: fd {integer}
 -- @param: buffer {ReadBuffer}
 -- @param: offset {integer}
@@ -55,7 +57,44 @@ function fs.read(fd, buffer, offset)
   return fs_native.read(fd, buffer, offset)
 end
 
--- @example: local ret = fs.write(fd, data, pos)
+-- @example: local data, ret = fs.readFile(path[, flag, mode])
+-- @param: path {string}
+-- @param: flag {string}
+-- @param: mode {integer}
+-- @return: data {string}
+-- @return: ret {integer} if ret < 0 ret is errno else ret is read bytes
+function fs.readFile(path, flag, mode)
+  if flag == nil then flag = 'r' end
+  if mode == nil then mode = 438 end
+
+  local fd = fs_native.open(path, flag, mode)
+  if fd < 0 then return nil, fd end
+
+  local stat, err
+  stat, err = fs_native.fstat(fd)
+  if err < 0 then
+    fs_native.close(fd)
+    return nil, err
+  end
+
+  local buffer
+  buffer, err = ReadBuffer.new(stat.size)
+  if err < 0 then
+    fs_native.close(fd)
+    return nil, err
+  end
+  
+  local ret = fs_native.read(fd, buffer, -1)
+  if ret < 0 then
+    fs_native.close(fd)
+    return nil, ret
+  end
+
+  fs_native.close(fd)
+  return buffer:read(-1)
+end
+
+-- @example: local ret = fs.write(fd, data[, offset])
 -- @param: fd {integer}
 -- @param: data {string|buffer|table[array(string|buffer)]}
 -- @param: offset {integer}
@@ -64,6 +103,38 @@ function fs.write(fd, data, offset)
   -- append
   if offset == nil then offset = -1 end
   return fs_native.write(fd, data, offset)
+end
+
+-- @example: local ret = fs.writeFile(path, data[, flag, mode])
+-- @param: path {string}
+-- @param: data {string|buffer|table[array(string|buffer)]}
+-- @param: flag {string}
+-- @param: mode {integer}
+-- @return: ret {integer} if ret < 0 ret is errno else ret is write bytes
+function fs.writeFile(path, data, flag, mode)
+  if flag == nil then flag = 'w' end
+  if mode == nil then mode = 438 end
+
+  local fd = fs_native.open(path, flag, mode)
+  if fd < 0 then return fd end
+
+  return fs_native.write(fd, data, -1)
+end
+
+-- @example: local ret = fs.appendFile(path, data[, flag, mode])
+-- @param: path {string}
+-- @param: data {string|buffer|table[array(string|buffer)]}
+-- @param: flag {string}
+-- @param: mode {integer}
+-- @return: ret {integer} if ret < 0 ret is errno else ret is write bytes
+function fs.appendFile(path, data, flag, mode)
+  if flag == nil then flag = 'a' end
+  if mode == nil then mode = 438 end
+
+  local fd = fs_native.open(path, flag, mode)
+  if fd < 0 then return fd end
+
+  return fs_native.write(fd, data, -1)
 end
 
 -- @example: local err = fs.unlink(path)
@@ -158,8 +229,8 @@ end
 -- @param: fd {integer}
 -- @return: stat {table}
 -- @return: err {integer}
-function fs.fstat(path)
-  return fs_native.fstat(path)
+function fs.fstat(fd)
+  return fs_native.fstat(fd)
 end
 
 -- @example: local stat, err = fs.lstat(path)
@@ -178,17 +249,17 @@ function fs.link(path, newpath)
   return fs_native.link(path, newpath)
 end
 
--- @example: local err = fs.symlink(path, newpath[, flags])
+-- @example: local err = fs.symlink(path, newpath[, flag])
 -- @param: path {string}
 -- @param: newpath {string}
--- @param: flags {table}
---    flags = {
+-- @param: flag {table}
+--    flag = {
 --      dir = {boolean}
 --      junction = {boolean}
 --    }
 -- @return: err {integer}
-function fs.symlink(path, newpath, flags)
-  return fs_native.symlink(path, newpath, flags)
+function fs.symlink(path, newpath, flag)
+  return fs_native.symlink(path, newpath, flag)
 end
 
 -- @example: local link, err = fs.readlink(path)
@@ -296,7 +367,7 @@ end
 local ReadStream = Readable:extend()
 
 local read_options = {
-  flags = 'r',
+  flag = 'r',
   mode = 438,
   bufferSize = 65536,
   fd = nil,
@@ -312,7 +383,7 @@ local read_meta = {
 -- @param: path {string}
 -- @param: options {table} @ReadStream.init
 --    local options = {
---      flags = {string}
+--      flag = {string}
 --      mode = {integer}
 --      bufferSize = {integer}
 --      fd = {integer}
@@ -327,11 +398,11 @@ function ReadStream:init(path, options)
   end
 
   local err = Readable.init(self, options.bufferSize)
-  if err then return err end
+  if err < 0 then return err end
 
   self.fd = options.fd
   if not self.fd then
-    local ret = fs_native.open(path, options.flags, options.mode)
+    local ret = fs_native.open(path, options.flag, options.mode)
     if ret < 0 then return ret end
     self.fd = ret
   end
@@ -346,6 +417,7 @@ end
 -- @return: err {integer}
 function ReadStream:_read()
   local ret = fs.read(self.fd, self.read_buffer, self.offset)
+  if ret == 0 then ret = ERRNO.UV_EOF end
   if self.offset and ret > 0 then
     self.offset = self.offset + ret
   end
@@ -381,7 +453,7 @@ function fs.createReadStream(path, options)
 end
 
 local write_options = {
-  flags = 'w',
+  flag = 'w',
   mode = 438,
   fd = nil,
   offset = nil
@@ -398,7 +470,7 @@ local WriteStream = Object:extend()
 -- @param: path {string}
 -- @param: options {table} @WriteStream.init
 --    local options = {
---      flags = {string}
+--      flag = {string}
 --      mode = {integer}
 --      fd = {integer}
 --      offset = {integer}
@@ -413,7 +485,7 @@ function WriteStream:init(path, options)
 
   self.fd = options.fd
   if not self.fd then
-    local ret = fs_native.open(path, options.flags, options.mode)
+    local ret = fs_native.open(path, options.flag, options.mode)
     if ret < 0 then return ret end
     self.fd = ret
   end

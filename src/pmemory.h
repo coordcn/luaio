@@ -13,7 +13,6 @@
 #define LUAIO_PMEMORY_H
 
 #include "alloc.h"
-#include "config.h"
 #include "palloc.h"
 
 #define LUAIO_PMEMORY_ALIGNMENT                     16

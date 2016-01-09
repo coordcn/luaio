@@ -44,7 +44,6 @@ static void LuaIO_process_free_options(uv_process_options_t* options) {
 }
 
 static void LuaIO_process_signal_callback(uv_signal_t* handle, int signal) {
-  /*do nothing, only for maintaining event loop.*/
 }
 
 static void LuaIO_process_onexit(uv_process_t* handle, int64_t status, int signal) {
@@ -215,7 +214,7 @@ static int LuaIO_process_fork(lua_State* L) {
   }
   lua_pop(L, 1);
 
-  uv_process_t* handle = (uv_process_t*)LuaIO_malloc(sizeof(uv_process_t));
+  uv_process_t* handle = LuaIO_malloc(sizeof(uv_process_t));
   if (!handle) {
     LuaIO_process_free_options(options);
     return luaL_error(L, "process.fork(options) error: no memory for uv_process_t handle.\n");
@@ -224,7 +223,7 @@ static int LuaIO_process_fork(lua_State* L) {
 
   LuaIO_process_data_t* data = NULL;
   if (forever) {
-    data = (LuaIO_process_data_t*)LuaIO_malloc(sizeof(LuaIO_process_data_t));
+    data = LuaIO_malloc(sizeof(LuaIO_process_data_t));
     if (!data) {
       LuaIO_process_free_options(options);
       return luaL_error(L, "process.fork(options) error:no memory for LuaIO_process_data_t data.\n");
@@ -283,7 +282,7 @@ static int LuaIO_process_exec(lua_State* L) {
     LuaIO_process_stdio_ptr = LuaIO_process_stdio;
   }
 
-  uv_process_options_t* options = (uv_process_options_t*)LuaIO_malloc(sizeof(uv_process_options_t));
+  uv_process_options_t* options = LuaIO_malloc(sizeof(uv_process_options_t));
   if (!options) {
     LuaIO_free(args);
     return luaL_error(L, "process.exec(cmd) error: no memory for uv_process_options_t options\n");
@@ -295,7 +294,7 @@ static int LuaIO_process_exec(lua_State* L) {
   options->stdio_count = 3;
   options->stdio = LuaIO_process_stdio_ptr;
 
-  uv_process_t* handle = (uv_process_t*)LuaIO_malloc(sizeof(uv_process_t));
+  uv_process_t* handle = LuaIO_malloc(sizeof(uv_process_t));
   if (!handle) {
     LuaIO_process_free_options(options);
     return luaL_error(L, "process.exec(cmd) error: no memory for uv_process_t handle\n");
@@ -316,7 +315,6 @@ static int LuaIO_process_exec(lua_State* L) {
   }
 
   lua_pushinteger(L, handle->pid);
-
   return 1;
 }
 
@@ -360,144 +358,109 @@ static int LuaIO_process_kill(lua_State* L) {
 
 static void LuaIO_process_setup_constants(lua_State* L) {
 #ifdef SIGHUP
-  lua_pushinteger(L, SIGHUP);
-  lua_setfield(L, -2, "SIGHUP");
+  LuaIO_constant(SIGHUP)
 #endif
 #ifdef SIGINT
-  lua_pushinteger(L, SIGINT);
-  lua_setfield(L, -2, "SIGINT");
+  LuaIO_constant(SIGINT)
 #endif
 #ifdef SIGQUIT
-  lua_pushinteger(L, SIGQUIT);
-  lua_setfield(L, -2, "SIGQUIT");
+  LuaIO_constant(SIGQUIT)
 #endif
 #ifdef SIGILL
-  lua_pushinteger(L, SIGILL);
-  lua_setfield(L, -2, "SIGILL");
+  LuaIO_constant(SIGILL)
 #endif
 #ifdef SIGTRAP
-  lua_pushinteger(L, SIGTRAP);
-  lua_setfield(L, -2, "SIGTRAP");
+  LuaIO_constant(SIGTRAP)
 #endif
 #ifdef SIGABRT
-  lua_pushinteger(L, SIGABRT);
-  lua_setfield(L, -2, "SIGABRT");
+  LuaIO_constant(SIGABRT)
 #endif
 #ifdef SIGIOT
-  lua_pushinteger(L, SIGIOT);
-  lua_setfield(L, -2, "SIGIOT");
+  LuaIO_constant(SIGIOT)
 #endif
 #ifdef SIGBUS
-  lua_pushinteger(L, SIGBUS);
-  lua_setfield(L, -2, "SIGBUS");
+  LuaIO_constant(SIGBUS)
 #endif
 #ifdef SIGFPE
-  lua_pushinteger(L, SIGFPE);
-  lua_setfield(L, -2, "SIGFPE");
+  LuaIO_constant(SIGFPE)
 #endif
 #ifdef SIGKILL
-  lua_pushinteger(L, SIGKILL);
-  lua_setfield(L, -2, "SIGKILL");
+  LuaIO_constant(SIGKILL)
 #endif
 #ifdef SIGUSR1
-  lua_pushinteger(L, SIGUSR1);
-  lua_setfield(L, -2, "SIGUSR1");
+  LuaIO_constant(SIGUSR1)
 #endif
 #ifdef SIGSEGV
-  lua_pushinteger(L, SIGSEGV);
-  lua_setfield(L, -2, "SIGSEGV");
+  LuaIO_constant(SIGSEGV)
 #endif
 #ifdef SIGUSR2
-  lua_pushinteger(L, SIGUSR2);
-  lua_setfield(L, -2, "SIGUSR2");
+  LuaIO_constant(SIGUSR2)
 #endif
 #ifdef SIGPIPE
-  lua_pushinteger(L, SIGPIPE);
-  lua_setfield(L, -2, "SIGPIPE");
+  LuaIO_constant(SIGPIPE)
 #endif
 #ifdef SIGALRM
-  lua_pushinteger(L, SIGALRM);
-  lua_setfield(L, -2, "SIGALRM");
+  LuaIO_constant(SIGALRM)
 #endif
 #ifdef SIGTERM
-  lua_pushinteger(L, SIGTERM);
-  lua_setfield(L, -2, "SIGTERM");
+  LuaIO_constant(SIGTERM)
 #endif
 #ifdef SIGCHLD
-  lua_pushinteger(L, SIGCHLD);
-  lua_setfield(L, -2, "SIGCHLD");
+  LuaIO_constant(SIGCHLD)
 #endif
 #ifdef SIGSTKFLT
-  lua_pushinteger(L, SIGSTKFLT);
-  lua_setfield(L, -2, "SIGSTKFLT");
+  LuaIO_constant(SIGSTKFLT)
 #endif
 #ifdef SIGCONT
-  lua_pushinteger(L, SIGCONT);
-  lua_setfield(L, -2, "SIGCONT");
+  LuaIO_constant(SIGCONT)
 #endif
 #ifdef SIGSTOP
-  lua_pushinteger(L, SIGSTOP);
-  lua_setfield(L, -2, "SIGSTOP");
+  LuaIO_constant(SIGSTOP)
 #endif
 #ifdef SIGTSTP
-  lua_pushinteger(L, SIGTSTP);
-  lua_setfield(L, -2, "SIGTSTP");
+  LuaIO_constant(SIGTSTP)
 #endif
 #ifdef SIGBREAK
-  lua_pushinteger(L, SIGBREAK);
-  lua_setfield(L, -2, "SIGBREAK");
+  LuaIO_constant(SIGBREAK)
 #endif
 #ifdef SIGTTIN
-  lua_pushinteger(L, SIGTTIN);
-  lua_setfield(L, -2, "SIGTTIN");
+  LuaIO_constant(SIGTTIN)
 #endif
 #ifdef SIGTTOU
-  lua_pushinteger(L, SIGTTOU);
-  lua_setfield(L, -2, "SIGTTOU");
+  LuaIO_constant(SIGTTOU)
 #endif
 #ifdef SIGURG
-  lua_pushinteger(L, SIGURG);
-  lua_setfield(L, -2, "SIGURG");
+  LuaIO_constant(SIGURG)
 #endif
 #ifdef SIGXCPU
-  lua_pushinteger(L, SIGXCPU);
-  lua_setfield(L, -2, "SIGXCPU");
+  LuaIO_constant(SIGXCPU)
 #endif
 #ifdef SIGXFSZ
-  lua_pushinteger(L, SIGXFSZ);
-  lua_setfield(L, -2, "SIGXFSZ");
+  LuaIO_constant(SIGXFSZ)
 #endif
 #ifdef SIGVTALRM
-  lua_pushinteger(L, SIGVTALRM);
-  lua_setfield(L, -2, "SIGVTALRM");
+  LuaIO_constant(SIGVTALRM)
 #endif
 #ifdef SIGPROF
-  lua_pushinteger(L, SIGPROF);
-  lua_setfield(L, -2, "SIGPROF");
+  LuaIO_constant(SIGPROF)
 #endif
 #ifdef SIGWINCH
-  lua_pushinteger(L, SIGWINCH);
-  lua_setfield(L, -2, "SIGWINCH");
+  LuaIO_constant(SIGWINCH)
 #endif
 #ifdef SIGIO
-  lua_pushinteger(L, SIGIO);
-  lua_setfield(L, -2, "SIGIO");
+  LuaIO_constant(SIGIO)
 #endif
 #ifdef SIGPOLL
-  lua_pushinteger(L, SIGPOLL);
-  lua_setfield(L, -2, "SIGPOLL");
+  LuaIO_constant(SIGPOLL)
 #endif
 #ifdef SIGLOST
-  lua_pushinteger(L, SIGLOST);
-  lua_setfield(L, -2, "SIGLOST");
+  LuaIO_constant(SIGLOST)
 #endif
 #ifdef SIGPWR
-  lua_pushinteger(L, SIGPWR);
-  lua_setfield(L, -2, "SIGPWR");
+  LuaIO_constant(SIGPWR)
 #endif
 #ifdef SIGSYS
-  lua_pushinteger(L, SIGSYS);
-  lua_setfield(L, -2, "SIGSYS");
+  LuaIO_constant(SIGSYS)
 #endif
 }
 

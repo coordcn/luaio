@@ -315,76 +315,37 @@ static int LuaIO_buffer_write_double_be(lua_State* L) {
 }
 
 int luaopen_write_buffer(lua_State *L) {
+  /*write buffer metatable*/
   lua_pushlightuserdata(L, &LuaIO_write_buffer_metatable_key);
+
   lua_createtable(L, 0, 23);
-  lua_pushcfunction(L, LuaIO_buffer_capacity);
-  lua_setfield(L, -2, "capacity");
-
-  lua_pushcfunction(L, LuaIO_buffer_discard);
-  lua_setfield(L, -2, "discard");
-
-  lua_pushcfunction(L, LuaIO_buffer_write);
-  lua_setfield(L, -2, "write");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_uint8);
-  lua_setfield(L, -2, "write_uint8");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_int8);
-  lua_setfield(L, -2, "write_int8");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_uint16_le);
-  lua_setfield(L, -2, "write_uint16_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_uint16_be);
-  lua_setfield(L, -2, "write_uint16_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_uint32_le);
-  lua_setfield(L, -2, "write_uint32_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_uint32_be);
-  lua_setfield(L, -2, "read_uint32_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_uint64_le);
-  lua_setfield(L, -2, "write_uint64_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_uint64_be);
-  lua_setfield(L, -2, "write_uint64_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_int16_le);
-  lua_setfield(L, -2, "write_int16_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_int16_be);
-  lua_setfield(L, -2, "write_int16_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_int32_le);
-  lua_setfield(L, -2, "write_int32_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_int32_be);
-  lua_setfield(L, -2, "write_int32_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_int64_le);
-  lua_setfield(L, -2, "write_int64_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_int64_be);
-  lua_setfield(L, -2, "write_int64_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_float_le);
-  lua_setfield(L, -2, "write_float_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_float_be);
-  lua_setfield(L, -2, "write_float_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_double_le);
-  lua_setfield(L, -2, "write_double_le");
-
-  lua_pushcfunction(L, LuaIO_buffer_write_double_be);
-  lua_setfield(L, -2, "write_double_be");
-
-  lua_pushcfunction(L, LuaIO_buffer_gc);
-  lua_setfield(L, -2, "__gc");
+  LuaIO_function(LuaIO_buffer_capacity, "capacity")
+  LuaIO_function(LuaIO_buffer_discard, "discard")
+  LuaIO_function(LuaIO_buffer_write, "write")
+  LuaIO_function(LuaIO_buffer_write_uint8, "write_uint8")
+  LuaIO_function(LuaIO_buffer_write_int8, "write_int8")
+  LuaIO_function(LuaIO_buffer_write_uint16_le, "write_uint16_le")
+  LuaIO_function(LuaIO_buffer_write_uint16_be, "write_uint16_be")
+  LuaIO_function(LuaIO_buffer_write_uint32_le, "write_uint32_le")
+  LuaIO_function(LuaIO_buffer_write_uint32_be, "write_uint32_be")
+  LuaIO_function(LuaIO_buffer_write_uint64_le, "write_uint64_le")
+  LuaIO_function(LuaIO_buffer_write_uint64_be, "write_uint64_be")
+  LuaIO_function(LuaIO_buffer_write_int16_le, "write_int16_le")
+  LuaIO_function(LuaIO_buffer_write_int16_be, "write_int16_be")
+  LuaIO_function(LuaIO_buffer_write_int32_le, "write_int32_le")
+  LuaIO_function(LuaIO_buffer_write_int32_be, "write_int32_be")
+  LuaIO_function(LuaIO_buffer_write_int64_le, "write_int64_le")
+  LuaIO_function(LuaIO_buffer_write_int64_be, "write_int64_be")
+  LuaIO_function(LuaIO_buffer_write_float_le, "write_float_le")
+  LuaIO_function(LuaIO_buffer_write_float_be, "write_float_be")
+  LuaIO_function(LuaIO_buffer_write_double_le, "write_double_le")
+  LuaIO_function(LuaIO_buffer_write_double_be, "write_double_be")
+  LuaIO_function(LuaIO_buffer_gc, "__gc")
 
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
+
+  /*save write buffer metatable*/
   lua_rawset(L, LUA_REGISTRYINDEX);
 
   luaL_Reg lib[] = {

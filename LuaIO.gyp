@@ -35,6 +35,7 @@
         'src/alloc.c',
         'src/palloc.c',
         'src/pmemory.c',
+        'src/timer.c',
         'src/hash.c',
         'src/common.c',
         'src/init.c',

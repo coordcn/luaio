@@ -9,7 +9,6 @@
 
 int main(int argc, char *argv[]) {
   lua_State *L;
-
   argv = uv_setup_args(argc, argv);
   
   L = luaL_newstate();
@@ -36,6 +35,5 @@ int main(int argc, char *argv[]) {
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   lua_close(L);
-
   return 0;
 }

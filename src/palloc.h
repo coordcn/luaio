@@ -9,7 +9,6 @@
 
 #include "list.h"
 #include "alloc.h"
-#include "config.h"
 
 /*cpu cache line size 64 bytes */
 #define LUAIO_POOL_ALIGNMENT              64
@@ -30,7 +29,6 @@ typedef union {
 } LuaIO_pool_chunk_t;
 
 void LuaIO_pool_init(LuaIO_pool_t* pool, size_t max_free_chunks);
-
 static inline void LuaIO_pool_set_max_free_chunks(LuaIO_pool_t* pool, 
                                                   size_t max_free_chunks) {
   pool->max_free_chunks = max_free_chunks;

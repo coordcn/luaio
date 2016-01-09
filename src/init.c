@@ -10,6 +10,34 @@
 static uint64_t LuaIO_start_time;
 static lua_State* LuaIO_main_thread;
 
+static void LuaIO_sleep_timeout(uv_timer_t* handle) {
+  lua_State* L = handle->data;
+  LuaIO_timer_free(handle);
+  lua_pushinteger(L, 0);
+  LuaIO_resume(L, 1);
+}
+
+static int LuaIO_sleep(lua_State* L) {
+  lua_Integer delay = luaL_checkinteger(L, 1);
+  uv_timer_t* timer = LuaIO_timer_alloc();
+  if (timer == NULL) {
+    lua_pushinteger(L, UV_ENOMEM);
+    return 1;
+  }
+
+  timer->data = L;
+  int err = uv_timer_start(timer,
+                           LuaIO_sleep_timeout,
+                           delay,
+                           0);
+  if (err < 0) {
+    lua_pushinteger(L, err);
+    return 1;
+  }
+
+  return lua_yield(L, 0);
+}
+
 static void LuaIO_platform_init() {
   /*ignore SGPIPE*/
   struct sigaction sa;
@@ -23,7 +51,11 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
   /*config.h*/
   LuaIO_platform_init();
   LuaIO_pmemory_init(LUAIO_PMEMORY_MAX_FREE_CHUNKS);
+  LuaIO_timer_init(LUAIO_TIMER_MAX_FREE_TIMERS);
   LuaIO_dns_init(L);
+  LuaIO_tcp_connect_req_pool_init(LUAIO_TCP_CONNECT_REQ_POOL_MAX_FREE_CHUNKS);
+  LuaIO_tcp_write_req_pool_init(LUAIO_TCP_WRITE_REQ_POOL_MAX_FREE_CHUNKS);
+  LuaIO_tcp_shutdown_req_pool_init(LUAIO_TCP_SHUTDOWN_REQ_POOL_MAX_FREE_CHUNKS);
   LuaIO_fs_req_pool_init(LUAIO_FS_REQ_POOL_MAX_FREE_CHUNKS);
 
   LuaIO_start_time = uv_now(uv_default_loop());
@@ -79,6 +111,10 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
     lua_rawseti(L, -2, i + 1);
   }
   lua_setglobal(L, "argv");
+
+  /*sleep(delay)*/
+  lua_pushcfunction(L, LuaIO_sleep);
+  lua_setglobal(L, "sleep");
 
   return 0;
 }

@@ -28,7 +28,7 @@ void* LuaIO_pmemory__alloc(size_t size, size_t* capacity) {
   if (size > LUAIO_PMEMORY_MAX_CHUNK_SIZE_LARGE) {
     real_size = size + sizeof(LuaIO_pool_chunk_t);
     LuaIO_pool_chunk_t* chunk = LuaIO_memalign(LUAIO_PMEMORY_ALIGNMENT, real_size);
-    if (!chunk) {
+    if (chunk == NULL) {
       return NULL;
     }
 
@@ -60,7 +60,7 @@ void* LuaIO_pmemory__alloc(size_t size, size_t* capacity) {
                               LUAIO_PMEMORY_ALIGNMENT,
                               real_slot);
 
-  if (!p) {
+  if (p == NULL) {
     return NULL;
   }
 
@@ -72,7 +72,7 @@ void* LuaIO_pmemory__alloc(size_t size, size_t* capacity) {
 }
 
 void LuaIO_pmemory__free(void* p) {
-  if (p) {
+  if (p != NULL) {
     LuaIO_pool_chunk_t* chunk = (LuaIO_pool_chunk_t*)((char*)p - sizeof(LuaIO_pool_chunk_t));
     if (chunk->magic == LUAIO_PMEMORY_MAGIC) {
       LuaIO_free(chunk);

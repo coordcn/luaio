@@ -262,29 +262,21 @@ static void LuaIO_fs_callback(uv_fs_t* req) {
         lua_pushinteger(L, result);
       } else {
         int ret;
-        int err = 0;
         lua_createtable(L, 0, 0);
 
-        for (int i = 0; ; i++) {
+        for (int i = 1; ; i++) {
           uv_dirent_t ent;
           ret = uv_fs_scandir_next(req, &ent);
-          if (ret == UV_EOF) {
-            break;
-          }
-
-          if (ret) {
-            err = ret;
-            break;
-          }
+          if (ret) break;
 
           lua_pushstring(L, ent.name);
-          lua_rawseti(L, -2, i + 1);
+          lua_rawseti(L, -2, i);
         }
 
-        if (err) {
+        if (ret && ret != UV_EOF) {
           lua_pop(L, 1);
           lua_pushnil(L);
-          lua_pushinteger(L, err);
+          lua_pushinteger(L, ret);
         } else {
           lua_pushinteger(L, 0);
         }
@@ -395,14 +387,12 @@ static int LuaIO_fs_read(lua_State* L) {
  */
 static int LuaIO_fs_write(lua_State* L) {
   int fd = luaL_checkinteger(L, 1);
-
+  /*common.h*/
   LuaIO_check_data(L, 2, fs_native:write(fd, data, pos));
-
   int pos = luaL_checkinteger(L, 3);
 
   CREATE_REQ1();
   req->bytes = bytes;
-
   int err = uv_fs_write(uv_default_loop(), 
                         &req->req,
                         fd,

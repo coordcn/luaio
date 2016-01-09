@@ -44,6 +44,14 @@
 
 #define LuaIO_is_buffer(type) LuaIO_check_bit(type, 2)
 
+#define LuaIO_constant(name) \
+  lua_pushinteger(L, name); \
+  lua_setfield(L, -2, #name); \
+
+#define LuaIO_function(fun, name) \
+  lua_pushcfunction(L, fun); \
+  lua_setfield(L, -2, name); \
+
 /*init.c*/
 lua_State* LuaIO_get_main_thread();
 
