@@ -41,19 +41,8 @@ typedef unsigned __int64 uint64_t;
 # define HTTP_PARSER_STRICT 1
 #endif
 
-/* Maximium header size allowed. If the macro is not defined
- * before including this header then the default is used. To
- * change the maximum header size, define the macro in the build
- * environment (e.g. -DHTTP_MAX_HEADER_SIZE=<value>). To remove
- * the effective limit on the size of the header, define the macro
- * to a very large number (e.g. -DHTTP_MAX_HEADER_SIZE=0x7fffffff)
- */
-#ifndef HTTP_MAX_HEADER_SIZE
-#define HTTP_MAX_HEADER_SIZE (32*1024)
-#endif
-
 #ifndef HTTP_MAX_HEADER_LINE_SIZE
-#define HTTP_MAX_HEADER_LINE_SIZE (8*1024)
+#define HTTP_MAX_HEADER_LINE_SIZE (16*1024)
 #endif
 
 /* Request Methods */
@@ -152,101 +141,68 @@ enum http_errno {
 /* Get an http_errno value from an http_parser */
 #define HTTP_PARSER_ERRNO(p)            ((enum http_errno) (p)->http_errno)
 
+/*parse completed*/
 #define HTTP_OK         0
-#define HTTP_AGAIN      -1
+/*parsed HTTP_MAX_HEADERS_PER_READ headers*/
+#define HTTP_DONE       -1
+/*parse error*/
 #define HTTP_ERROR      -2
+/*need more data*/
+#define HTTP_AGAIN      -3
 
 typedef struct http_parser http_parser;
 typedef struct http_url http_url;
 
 typedef struct {
-  char* start;
-  char* end;
-} http_string;
+  char    *base;
+  size_t  len;
+} http_buf_t;
 
-enum http_url_fields { 
-  UF_SCHEMA           = 0,
-  UF_USER             = 1,
-  UF_PASS             = 2,
-  UF_HOST             = 3,
-  UF_PORT             = 4,
-  UF_PATH             = 5,
-  UF_QUERY            = 6,
-  UF_FRAGMENT         = 7,
-  UF_MAX              = 8
+struct http_url {
+  http_buf_t schema;
+  /*USERINFO@HOST:PORT*/
+  http_buf_t server;
+  http_buf_t path;
+  http_buf_t query;
+  http_buf_t fragment;
+  http_buf_t userinfo;
+  http_buf_t host;
+  http_buf_t port;
 };
 
 #define HTTP_MAX_HEADERS_PER_READ      32
-
 struct http_parser {
-  http_string url_parsed[UF_MAX];
-  /*headers[0]: name*/
+  http_url    url;
+  /*headers[0]: field*/
   /*headers[1]: value*/
-  http_string headers[HTTP_MAX_HEADERS_PER_READ * 2];
-  char* pos;
-  uint32_t nread;
-  uint32_t nread_line;
-  uint32_t max_header_size;
-  uint32_t max_header_line_size;
-  uint16_t http_major;
-  uint16_t http_minor;
-  uint16_t status_code;
-  uint16_t url_fields;
-  uint8_t method;
-  uint8_t http_errno;
-  uint8_t state;
-  uint8_t nheaders;
+  http_buf_t  headers[HTTP_MAX_HEADERS_PER_READ * 2];
+  char*       last_pos;
+  size_t      nread;
+  size_t      max_header_line_size;
+  uint16_t    http_major;
+  uint16_t    http_minor;
+  uint16_t    status_code;
+  uint8_t     method;
+  uint8_t     index;
+  uint8_t     http_errno;
+  uint8_t     state;
+  /*current headers_num * 2*/
+  uint8_t     nbuf;
+  uint8_t     found_at;
 };
 
-#define http_parser_init(parser) do {                                     \
-  parser->pos = NULL;                                                     \
-  parser->nread = 0;                                                      \
-  parser->nread_line = 0;                                                 \
-  parser->nheaders = 0;                                                   \
-  parser->http_major = 0;                                                 \
-  parser->http_minor = 0;                                                 \
-  parser->status_code = 0;                                                \
-  parser->url_fields = 0;                                                 \
-  parser->method = 0;                                                     \
-  parser->http_errno = 0;                                                 \
-  parser->state = 0;                                                      \
-} while (0)
+void http_parser_init(http_parser *parser, size_t max_header_line_size);
 
-#define http_parser_reset_after_read_response_line(parser) do {           \
-  parser->pos = NULL;                                                     \
-  parser->nread_line = 0;                                                 \
-  parser->http_major = 0;                                                 \
-  parser->http_minor = 0;                                                 \
-  parser->status_code = 0;                                                \
-  parser->state = 0;                                                      \
-} while (0)
+int http_parse_status_line(http_parser *parser, char *data, char *last);
+int http_parse_request_line(http_parser *parser, char *data, char *last);
+int http_parse_headers(http_parser *parser, char *data, char *last);
 
-#define http_parser_reset_after_read_request_line(parser) do {            \
-  parser->pos = NULL;                                                     \
-  parser->nread_line = 0;                                                 \
-  parser->http_major = 0;                                                 \
-  parser->http_minor = 0;                                                 \
-  parser->url_fields = 0;                                                 \
-  parser->method = 0;                                                     \
-  parser->state = 0;                                                      \
-} while (0)
+const char *http_method_str(enum http_method m);
+const char *http_errno_name(enum http_errno err);
+const char *http_errno_description(enum http_errno err);
 
-#define http_parser_reset_after_read_header_part(parser) do {             \
-  parser->nheaders = 0;                                                   \
-  parser->state = 0;                                                      \
-} while (0)
-
-#define http_parser_reset_after_read_header_all(parser) do {              \
-  parser->pos = NULL;                                                     \
-  parser->nread = 0;                                                      \
-  parser->nread_line = 0;                                                 \
-  parser->nheaders = 0;                                                   \
-  parser->state = 0;                                                      \
-} while (0)
-
-int http_parse_response_line(http_parser* parser, const char* data, const char* last);
-int http_parse_request_line(http_parser* parser, const char* data, const char* last);
-int http_parse_headers(http_parser* parser, const char* data, const char* last);
+int http_parse_host(http_url *url, char *data, size_t len, uint8_t found_at);
+int http_parse_url(http_url *url, char *data, size_t len);
 
 #ifdef __cplusplus
 }
