@@ -8,11 +8,11 @@
 #include "common.h"
 
 typedef struct {
-  uv_fs_t req;
-  lua_State* current_thread;
-  LuaIO_buffer_t* read_buffer;
-  size_t bytes;
-  int write_data_ref;
+  uv_fs_t         req;
+  lua_State       *current_thread;
+  LuaIO_buffer_t  *read_buffer;
+  size_t          bytes;
+  int             write_data_ref;
 } LuaIO_fs_req_t;
 
 static LuaIO_pool_t LuaIO_fs_req_pool;
@@ -21,7 +21,7 @@ void LuaIO_fs_req_pool_init(size_t max_free_chunks) {
   LuaIO_pool_init(&LuaIO_fs_req_pool, max_free_chunks);
 }
 
-static int LuaIO_fs_parse_open_flags(lua_State* L, const char* flags, size_t len) {
+static int LuaIO_fs_parse_open_flags(lua_State *L, const char *flags, size_t len) {
   if (len == 1) { 
     if (LuaIO_strcmp1(flags, 'r')) {
       return O_RDONLY;
@@ -71,7 +71,7 @@ static int LuaIO_fs_parse_open_flags(lua_State* L, const char* flags, size_t len
   return luaL_error(L, "fs_native.open(path, flags, mode) error: unknown file open flag[%s]", flags);
 }
 
-static int LuaIO_fs_parse_access_mode(lua_State* L, const char* amode, int n) {
+static int LuaIO_fs_parse_access_mode(lua_State *L, const char *amode, int n) {
   int mode = 0;
   for (int i = 0; i < n; ++i) {
     switch (amode[i]) {
@@ -96,7 +96,7 @@ static int LuaIO_fs_parse_access_mode(lua_State* L, const char* amode, int n) {
 }
 
 #define CREATE_REQ1() \
-  LuaIO_fs_req_t* req = LuaIO_palloc(&LuaIO_fs_req_pool, sizeof(LuaIO_fs_req_t)); \
+  LuaIO_fs_req_t *req = LuaIO_palloc(&LuaIO_fs_req_pool, sizeof(LuaIO_fs_req_t)); \
   if (req == NULL) { \
     lua_pushinteger(L, UV_ENOMEM); \
     return 1; \
@@ -104,7 +104,7 @@ static int LuaIO_fs_parse_access_mode(lua_State* L, const char* amode, int n) {
   req->current_thread = L;
 
 #define CREATE_REQ2() \
-  LuaIO_fs_req_t* req = LuaIO_palloc(&LuaIO_fs_req_pool, sizeof(LuaIO_fs_req_t)); \
+  LuaIO_fs_req_t *req = LuaIO_palloc(&LuaIO_fs_req_pool, sizeof(LuaIO_fs_req_t)); \
   if (req == NULL) { \
     lua_pushnil(L); \
     lua_pushinteger(L, UV_ENOMEM); \
@@ -131,7 +131,7 @@ static int LuaIO_fs_parse_access_mode(lua_State* L, const char* amode, int n) {
   } \
   return lua_yield(L, 0);
 
-static void LuaIO_fs_create_stat(lua_State* L, const uv_stat_t* s) {
+static void LuaIO_fs_create_stat(lua_State *L, const uv_stat_t *s) {
 #define X(name) \
   lua_pushinteger(L, s->st_##name); \
   lua_setfield(L, -2, #name);
@@ -163,9 +163,9 @@ static void LuaIO_fs_create_stat(lua_State* L, const uv_stat_t* s) {
   lua_setfield(L, -2, "type");
 }
 
-static void LuaIO_fs_callback(uv_fs_t* req) {
-  LuaIO_fs_req_t* fs_req = container_of(req, LuaIO_fs_req_t, req);
-  lua_State* L = fs_req->current_thread;
+static void LuaIO_fs_callback(uv_fs_t *req) {
+  LuaIO_fs_req_t *fs_req = container_of(req, LuaIO_fs_req_t, req);
+  lua_State *L = fs_req->current_thread;
   int result = req->result;
 
   switch (req->fs_type) {
@@ -295,12 +295,12 @@ static void LuaIO_fs_callback(uv_fs_t* req) {
  * ret < 0 => errno
  * ret == 0 => ok
  */
-static int LuaIO_fs_access(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_access(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
 
   int mode;
   size_t len;
-  const char* amode;
+  const char *amode;
   if (lua_isinteger(L, 2)) {
     mode = lua_tointeger(L, 2);
   } else if (lua_isstring(L, 2)) {
@@ -318,11 +318,11 @@ static int LuaIO_fs_access(lua_State* L) {
  * ret < 0 => errno
  * ret >= 0 => fd
  */
-static int LuaIO_fs_open(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_open(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
 
   size_t len;
-  const char* flags = luaL_checklstring(L, 2, &len);
+  const char *flags = luaL_checklstring(L, 2, &len);
   int flag = LuaIO_fs_parse_open_flags(L, flags, len);
 
   int mode = luaL_checkinteger(L, 3);
@@ -332,7 +332,7 @@ static int LuaIO_fs_open(lua_State* L) {
 }
 
 /*local err = fs.close(fd)*/
-static int LuaIO_fs_close(lua_State* L) {
+static int LuaIO_fs_close(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
 
   CREATE_REQ1();
@@ -343,10 +343,10 @@ static int LuaIO_fs_close(lua_State* L) {
  * ret < 0 => errno
  * ret >= 0 => read bytes
  */
-static int LuaIO_fs_read(lua_State* L) {
+static int LuaIO_fs_read(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
 
-  LuaIO_buffer_t* buffer = lua_touserdata(L, 2);
+  LuaIO_buffer_t *buffer = lua_touserdata(L, 2);
   if (buffer == NULL || buffer->type != LUAIO_TYPE_READ_BUFFER) {
     return luaL_argerror(L, 2, "fs_native.read(fd, buffer, pos) error: buffer must be [read_buffer]\n");
   }
@@ -354,10 +354,9 @@ static int LuaIO_fs_read(lua_State* L) {
   int pos = luaL_checkinteger(L, 3);
 
   CREATE_REQ1();
-
   if (buffer->capacity == 0) {
     size_t capacity;
-    char* start = LuaIO_pmemory__alloc(buffer->size, &capacity);
+    char *start = LuaIO_pmemory__alloc(buffer->size, &capacity);
     if (start == NULL) {
       LuaIO_pfree(&LuaIO_fs_req_pool, req);
       lua_pushinteger(L, UV_ENOMEM);
@@ -373,7 +372,7 @@ static int LuaIO_fs_read(lua_State* L) {
   }
 
   uv_buf_t buf;
-  char* write_pos = buffer->write_pos;
+  char *write_pos = buffer->write_pos;
   buf.base = write_pos;
   buf.len = buffer->end - write_pos;
   req->read_buffer = buffer;
@@ -385,7 +384,7 @@ static int LuaIO_fs_read(lua_State* L) {
  * ret < 0 => errno
  * ret >= 0 => write bytes
  */
-static int LuaIO_fs_write(lua_State* L) {
+static int LuaIO_fs_write(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   /*common.h*/
   LuaIO_check_data(L, 2, fs_native:write(fd, data, pos));
@@ -420,33 +419,33 @@ static int LuaIO_fs_write(lua_State* L) {
 }
 
 /*local err = fs.unlink(path)*/
-static int LuaIO_fs_unlink(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_unlink(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
 
   CREATE_REQ1();
   FS_CALL1(unlink, req, path);
 }
 
 /*local err = fs.rename(path, newpath)*/
-static int LuaIO_fs_rename(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
-  const char* newpath = luaL_checkstring(L, 2);
+static int LuaIO_fs_rename(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
+  const char *newpath = luaL_checkstring(L, 2);
 
   CREATE_REQ1();
   FS_CALL1(rename, req, path, newpath);
 }
 
 /*local err = fs.rmdir(path)*/
-static int LuaIO_fs_rmdir(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_rmdir(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
 
   CREATE_REQ1();
   FS_CALL1(rmdir, req, path);
 }
 
 /*local err = fs.mkdir(path, mode)*/
-static int LuaIO_fs_mkdir(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_mkdir(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
   int mode = luaL_checkinteger(L, 2);
 
   CREATE_REQ1();
@@ -454,23 +453,23 @@ static int LuaIO_fs_mkdir(lua_State* L) {
 }
 
 /*local err = fs.mkdtemp(temp)*/
-static int LuaIO_fs_mkdtemp(lua_State* L) {
-  const char* temp = luaL_checkstring(L, 1);
+static int LuaIO_fs_mkdtemp(lua_State *L) {
+  const char *temp = luaL_checkstring(L, 1);
 
   CREATE_REQ2();
   FS_CALL2(mkdtemp, req, temp);
 }
 
 /*local files, err = fs.readdir(path)*/
-static int LuaIO_fs_readdir(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_readdir(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
 
   CREATE_REQ2();
   FS_CALL2(scandir, req, path, 0);
 }
 
 /*local err = fs.sendfile(outfd, infd, offset, length)*/
-static int LuaIO_fs_sendfile(lua_State* L) {
+static int LuaIO_fs_sendfile(lua_State *L) {
   int outfd = luaL_checkinteger(L, 1);
   int infd = luaL_checkinteger(L, 2);
   int offset = luaL_checkinteger(L, 3);
@@ -481,15 +480,15 @@ static int LuaIO_fs_sendfile(lua_State* L) {
 }
 
 /*local stat, err = fs.stat(path)*/
-static int LuaIO_fs_stat(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_stat(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
 
   CREATE_REQ2();
   FS_CALL2(stat, req, path);
 }
 
 /*local stat, err = fs.fstat(fd)*/
-static int LuaIO_fs_fstat(lua_State* L) {
+static int LuaIO_fs_fstat(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
 
   CREATE_REQ2();
@@ -497,26 +496,26 @@ static int LuaIO_fs_fstat(lua_State* L) {
 }
 
 /*local stat, err = fs.lstat(path)*/
-static int LuaIO_fs_lstat(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_lstat(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
 
   CREATE_REQ2();
   FS_CALL2(lstat, req, path);
 }
 
 /*local err = fs.link(path, newpath)*/
-static int LuaIO_fs_link(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
-  const char* newpath = luaL_checkstring(L, 2);
+static int LuaIO_fs_link(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
+  const char *newpath = luaL_checkstring(L, 2);
 
   CREATE_REQ1();
   FS_CALL1(link, req, path, newpath);
 }
 
 /*local err = fs.symlink(path, newpath, flags)*/
-static int LuaIO_fs_symlink(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
-  const char* newpath = luaL_checkstring(L, 2);
+static int LuaIO_fs_symlink(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
+  const char *newpath = luaL_checkstring(L, 2);
 
   int flags = 0;
   if (lua_type(L, 3) == LUA_TTABLE) {
@@ -533,16 +532,16 @@ static int LuaIO_fs_symlink(lua_State* L) {
 }
 
 /*local link, err = fs.readlink(path)*/
-static int LuaIO_fs_readlink(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_readlink(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
 
   CREATE_REQ2();
   FS_CALL2(readlink, req, path);
 }
 
 /*local err = fs.chmod(path, mode)*/
-static int LuaIO_fs_chmod(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_chmod(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
   int mode = luaL_checkinteger(L, 2);
 
   CREATE_REQ1();
@@ -550,7 +549,7 @@ static int LuaIO_fs_chmod(lua_State* L) {
 }
 
 /*local err = fs.fchmod(fd, mode)*/
-static int LuaIO_fs_fchmod(lua_State* L) {
+static int LuaIO_fs_fchmod(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   int mode = luaL_checkinteger(L, 2);
 
@@ -559,8 +558,8 @@ static int LuaIO_fs_fchmod(lua_State* L) {
 }
 
 /*local err = fs.chown(path, uid, gid)*/
-static int LuaIO_fs_chown(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_chown(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
   uv_uid_t uid = luaL_checkinteger(L, 2);
   uv_gid_t gid = luaL_checkinteger(L, 3);
 
@@ -569,7 +568,7 @@ static int LuaIO_fs_chown(lua_State* L) {
 }
 
 /*local err = fs.fchown(fd, uid, gid)*/
-static int LuaIO_fs_fchown(lua_State* L) {
+static int LuaIO_fs_fchown(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   uv_uid_t uid = luaL_checkinteger(L, 2);
   uv_gid_t gid = luaL_checkinteger(L, 3);
@@ -579,8 +578,8 @@ static int LuaIO_fs_fchown(lua_State* L) {
 }
 
 /*local err = fs.utime(path, atime, mtime) */
-static int LuaIO_fs_utime(lua_State* L) {
-  const char* path = luaL_checkstring(L, 1);
+static int LuaIO_fs_utime(lua_State *L) {
+  const char *path = luaL_checkstring(L, 1);
   time_t atime = luaL_checkinteger(L, 2);
   time_t mtime = luaL_checkinteger(L, 3);
 
@@ -589,7 +588,7 @@ static int LuaIO_fs_utime(lua_State* L) {
 }
 
 /*local err = fs.futime(fd, atime, mtime) */
-static int LuaIO_fs_futime(lua_State* L) {
+static int LuaIO_fs_futime(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   time_t atime = luaL_checkinteger(L, 2);
   time_t mtime = luaL_checkinteger(L, 3);
@@ -599,7 +598,7 @@ static int LuaIO_fs_futime(lua_State* L) {
 }
 
 /*local err = fs.ftruncate(fd, length)*/
-static int LuaIO_fs_ftruncate(lua_State* L) {
+static int LuaIO_fs_ftruncate(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
   int64_t length = luaL_checkinteger(L, 2);
   CREATE_REQ1();
@@ -607,7 +606,7 @@ static int LuaIO_fs_ftruncate(lua_State* L) {
 }
 
 /*local err = fs.fsync(fd)*/
-static int LuaIO_fs_fsync(lua_State* L) {
+static int LuaIO_fs_fsync(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
 
   CREATE_REQ1();
@@ -615,14 +614,14 @@ static int LuaIO_fs_fsync(lua_State* L) {
 }
 
 /*local err = fs.fdatasync(fd)*/
-static int LuaIO_fs_fdatasync(lua_State* L) {
+static int LuaIO_fs_fdatasync(lua_State *L) {
   int fd = luaL_checkinteger(L, 1);
 
   CREATE_REQ1();
   FS_CALL1(fdatasync, req, fd);
 }
 
-static void LuaIO_fs_setup_constants(lua_State* L) {
+static void LuaIO_fs_setup_constants(lua_State *L) {
   lua_pushinteger(L, S_IFREG);
   lua_setfield(L, -2, "FILE");
 

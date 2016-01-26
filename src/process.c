@@ -8,21 +8,21 @@
 #include "LuaIO.h"
 
 typedef struct {
-  int cpu;
-  int options_ref;
-  uv_process_options_t* options;
+  int                   cpu;
+  int                   options_ref;
+  uv_process_options_t  *options;
 } LuaIO_process_data_t;
 
 static char LuaIO_process_exepath[PATH_MAX * 2];
-static char* LuaIO_process_exepath_ptr;
+static char *LuaIO_process_exepath_ptr;
 static uv_signal_t LuaIO_process_signal;
-static uv_signal_t* LuaIO_process_signal_ptr;
+static uv_signal_t *LuaIO_process_signal_ptr;
 static uv_stdio_container_t LuaIO_process_stdio[3];
-static uv_stdio_container_t* LuaIO_process_stdio_ptr;
+static uv_stdio_container_t *LuaIO_process_stdio_ptr;
 
-static int LuaIO_process_uptime(lua_State* L) {
+static int LuaIO_process_uptime(lua_State *L) {
   uint64_t uptime;
-  uv_loop_t* loop = uv_default_loop();
+  uv_loop_t *loop = uv_default_loop();
 
   uv_update_time(loop);
   uptime = uv_now(loop) - LuaIO_get_start_time();
@@ -38,17 +38,17 @@ static int LuaIO_set_affinity(int pid, int cpu) {
   return sched_setaffinity(pid, sizeof(cpu_set_t), &mask); 
 }
 
-static void LuaIO_process_free_options(uv_process_options_t* options) {
+static void LuaIO_process_free_options(uv_process_options_t *options) {
   free(options->args);
   free(options);
 }
 
-static void LuaIO_process_signal_callback(uv_signal_t* handle, int signal) {
+static void LuaIO_process_signal_callback(uv_signal_t *handle, int signal) {
 }
 
-static void LuaIO_process_onexit(uv_process_t* handle, int64_t status, int signal) {
+static void LuaIO_process_onexit(uv_process_t *handle, int64_t status, int signal) {
   if (handle->data) {
-    LuaIO_process_data_t* data = handle->data;
+    LuaIO_process_data_t *data = handle->data;
     fprintf(stderr,
             "process[%d] exit. status: %" PRId64 ", signal: %d, file: %s\n",
             handle->pid,
@@ -59,7 +59,7 @@ static void LuaIO_process_onexit(uv_process_t* handle, int64_t status, int signa
     data->options->file = LuaIO_process_exepath_ptr;
     data->options->args[0] = LuaIO_process_exepath_ptr;
 
-    uv_process_t* process = (uv_process_t*) LuaIO_malloc(sizeof(uv_process_t));
+    uv_process_t *process = (uv_process_t*)LuaIO_malloc(sizeof(uv_process_t));
     if (!process) {
       LuaIO_process_free_options(data->options);
       luaL_unref(LuaIO_get_main_thread(), LUA_REGISTRYINDEX, data->options_ref);
@@ -97,7 +97,7 @@ static void LuaIO_process_onexit(uv_process_t* handle, int64_t status, int signa
   uv_close((uv_handle_t*)handle, NULL);
 }
 
-static int LuaIO_process_fork(lua_State* L) {
+static int LuaIO_process_fork(lua_State *L) {
   if (lua_type(L, 1) != LUA_TTABLE) {
     return luaL_argerror(L, 1, "process.fork(options) error: options must be [table]\n"); 
   }
@@ -113,7 +113,7 @@ static int LuaIO_process_fork(lua_State* L) {
   }
 
   lua_getfield(L, 1, "file");
-  const char* file;
+  const char *file;
   if (lua_type(L, -1) == LUA_TSTRING) {
     file = lua_tostring(L, -1);
   } else {
@@ -123,7 +123,7 @@ static int LuaIO_process_fork(lua_State* L) {
 
   lua_getfield(L, 1, "args");
   size_t args_length = 0;
-  char** args = NULL;
+  char **args = NULL;
   if (lua_type(L, -1) == LUA_TTABLE) {
     args_length = lua_rawlen(L, -1);
     /*execpath, file, null => args_length + 3*/
@@ -162,7 +162,7 @@ static int LuaIO_process_fork(lua_State* L) {
     LuaIO_process_stdio_ptr = LuaIO_process_stdio;
   }
 
-  uv_process_options_t* options = LuaIO_malloc(sizeof(uv_process_options_t));
+  uv_process_options_t *options = LuaIO_malloc(sizeof(uv_process_options_t));
   if (!options) {
     LuaIO_free(args);
     return luaL_error(L, "process.fork(options) error: no memory for uv_process_options_t options\n");
@@ -214,14 +214,14 @@ static int LuaIO_process_fork(lua_State* L) {
   }
   lua_pop(L, 1);
 
-  uv_process_t* handle = LuaIO_malloc(sizeof(uv_process_t));
+  uv_process_t *handle = LuaIO_malloc(sizeof(uv_process_t));
   if (!handle) {
     LuaIO_process_free_options(options);
     return luaL_error(L, "process.fork(options) error: no memory for uv_process_t handle.\n");
   }
   LuaIO_memzero(handle, sizeof(uv_process_t));
 
-  LuaIO_process_data_t* data = NULL;
+  LuaIO_process_data_t *data = NULL;
   if (forever) {
     data = LuaIO_malloc(sizeof(LuaIO_process_data_t));
     if (!data) {
@@ -257,8 +257,8 @@ static int LuaIO_process_fork(lua_State* L) {
   return 1;
 }
 
-static int LuaIO_process_exec(lua_State* L) {
-  const char* cmd;
+static int LuaIO_process_exec(lua_State *L) {
+  const char *cmd;
   if (lua_type(L, 1) == LUA_TSTRING) {
     cmd = lua_tostring(L, 1);
   } else {
@@ -266,7 +266,7 @@ static int LuaIO_process_exec(lua_State* L) {
   }
 
   /*shell, -c, cmd, null*/
-  char** args = LuaIO_malloc(sizeof(char*) * 4);
+  char **args = LuaIO_malloc(sizeof(char*) * 4);
   args[0] = "/bin/sh";
   args[1] = "-c";
   args[2] = (char*)cmd;
@@ -282,7 +282,7 @@ static int LuaIO_process_exec(lua_State* L) {
     LuaIO_process_stdio_ptr = LuaIO_process_stdio;
   }
 
-  uv_process_options_t* options = LuaIO_malloc(sizeof(uv_process_options_t));
+  uv_process_options_t *options = LuaIO_malloc(sizeof(uv_process_options_t));
   if (!options) {
     LuaIO_free(args);
     return luaL_error(L, "process.exec(cmd) error: no memory for uv_process_options_t options\n");
@@ -294,7 +294,7 @@ static int LuaIO_process_exec(lua_State* L) {
   options->stdio_count = 3;
   options->stdio = LuaIO_process_stdio_ptr;
 
-  uv_process_t* handle = LuaIO_malloc(sizeof(uv_process_t));
+  uv_process_t *handle = LuaIO_malloc(sizeof(uv_process_t));
   if (!handle) {
     LuaIO_process_free_options(options);
     return luaL_error(L, "process.exec(cmd) error: no memory for uv_process_t handle\n");
@@ -318,7 +318,7 @@ static int LuaIO_process_exec(lua_State* L) {
   return 1;
 }
 
-static int LuaIO_process_cwd(lua_State* L) {
+static int LuaIO_process_cwd(lua_State *L) {
   char buf[PATH_MAX];
   size_t length = sizeof(buf);
 
@@ -334,7 +334,7 @@ static int LuaIO_process_abort(lua_State* L) {
   return 0;
 }
 
-static int LuaIO_process_exit(lua_State* L) {
+static int LuaIO_process_exit(lua_State *L) {
   int argc = lua_gettop(L);
   int signal = SIGTERM;
 
@@ -344,7 +344,7 @@ static int LuaIO_process_exit(lua_State* L) {
   return 0;
 }
 
-static int LuaIO_process_kill(lua_State* L) {
+static int LuaIO_process_kill(lua_State *L) {
   int pid = luaL_checkinteger(L, 1);
   int argc = lua_gettop(L);
   int signal = SIGTERM;
@@ -356,7 +356,7 @@ static int LuaIO_process_kill(lua_State* L) {
   return 0;
 }
 
-static void LuaIO_process_setup_constants(lua_State* L) {
+static void LuaIO_process_setup_constants(lua_State *L) {
 #ifdef SIGHUP
   LuaIO_constant(SIGHUP)
 #endif
@@ -466,15 +466,15 @@ static void LuaIO_process_setup_constants(lua_State* L) {
 
 int luaopen_process(lua_State *L) {
   luaL_Reg lib[] = {
-    { "uptime", LuaIO_process_uptime},
-    { "fork", LuaIO_process_fork},
-    { "exec", LuaIO_process_exec},
-    { "cwd", LuaIO_process_cwd},
-    { "abort", LuaIO_process_abort},
-    { "exit", LuaIO_process_exit},
-    { "kill", LuaIO_process_kill},
-    { "__newindex", LuaIO_cannot_change},
-    { NULL, NULL}
+    { "uptime", LuaIO_process_uptime },
+    { "fork", LuaIO_process_fork },
+    { "exec", LuaIO_process_exec },
+    { "cwd", LuaIO_process_cwd },
+    { "abort", LuaIO_process_abort },
+    { "exit", LuaIO_process_exit },
+    { "kill", LuaIO_process_kill },
+    { "__newindex", LuaIO_cannot_change },
+    { NULL, NULL }
   };
 
   lua_createtable(L, 0, 0);

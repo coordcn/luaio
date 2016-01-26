@@ -19,6 +19,9 @@ int luaopen_errno(lua_State* L);
 int luaopen_system(lua_State* L);
 int luaopen_process(lua_State* L);
 
+void LuaIO_date_init(); 
+int luaopen_date(lua_State *L);
+
 int luaopen_read_buffer(lua_State *L);
 int luaopen_write_buffer(lua_State *L);
 

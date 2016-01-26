@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  const char* fname = argv[1];
+  const char *fname = argv[1];
   if (luaL_dofile(L, fname)) {
     printf("%s\n", lua_tostring(L, -1));
     lua_pop(L, 1);

@@ -9,23 +9,23 @@
 #include "uv.h"
 
 static LuaIO_pool_t LuaIO_hash_item_pool;
-static LuaIO_pool_t* LuaIO_hash_item_pool_ptr;
+static LuaIO_pool_t *LuaIO_hash_item_pool_ptr;
 
 /*double slots size and rehash*/
-static void LuaIO_hash_rehash(LuaIO_hash_t* hash) {
+static void LuaIO_hash_rehash(LuaIO_hash_t *hash) {
   size_t old_size = 1 << hash->bits;
   size_t bits = hash->bits++;
   size_t size = 1 << bits;
   hash->max_items = size;
-  LuaIO_hlist_head_t* old_slots = hash->slots;
-  LuaIO_hlist_head_t* new_slots = (LuaIO_hlist_head_t*)LuaIO_malloc(sizeof(LuaIO_hlist_head_t) * size);
+  LuaIO_hlist_head_t *old_slots = hash->slots;
+  LuaIO_hlist_head_t *new_slots = (LuaIO_hlist_head_t*)LuaIO_malloc(sizeof(LuaIO_hlist_head_t) * size);
   for (size_t i = 0; i < size; i++) {
     new_slots[i].first = NULL;
   }
 
-  LuaIO_hlist_head_t* current_slot;
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *current_slot;
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
   size_t index;
   for (size_t i = 0; i < old_size; i++) {
     current_slot = &old_slots[i];
@@ -42,7 +42,7 @@ static void LuaIO_hash_rehash(LuaIO_hash_t* hash) {
   LuaIO_free(old_slots);
 }
 
-LuaIO_hash_t* LuaIO_hash__create(size_t bits, 
+LuaIO_hash_t *LuaIO_hash__create(size_t bits, 
                                  size_t max_age, 
                                  LuaIO_hash_free_fn free_fn, 
                                  LuaIO_hash_strcmp_fn strcmp_fn, 
@@ -52,7 +52,7 @@ LuaIO_hash_t* LuaIO_hash__create(size_t bits,
     LuaIO_hash_item_pool_ptr = &LuaIO_hash_item_pool;
   }
 
-  LuaIO_hash_t* hash = (LuaIO_hash_t*)LuaIO_malloc(sizeof(LuaIO_hash_t));
+  LuaIO_hash_t *hash = (LuaIO_hash_t*)LuaIO_malloc(sizeof(LuaIO_hash_t));
   hash->bits = bits;
   size_t size = 1 << bits;
   hash->max_items = size;
@@ -61,7 +61,7 @@ LuaIO_hash_t* LuaIO_hash__create(size_t bits,
   hash->str_cmp = strcmp_fn;
   hash->hash = hash_fn;
   hash->items = 0;
-  LuaIO_hlist_head_t* slots = (LuaIO_hlist_head_t*)LuaIO_malloc(sizeof(LuaIO_hlist_head_t) * size);
+  LuaIO_hlist_head_t *slots = (LuaIO_hlist_head_t*)LuaIO_malloc(sizeof(LuaIO_hlist_head_t) * size);
   for (size_t i = 0; i < size; i++) {
     slots[i].first = NULL;
   }
@@ -70,13 +70,13 @@ LuaIO_hash_t* LuaIO_hash__create(size_t bits,
   return hash;
 }
 
-void LuaIO_hash_destroy(LuaIO_hash_t* hash) {
+void LuaIO_hash_destroy(LuaIO_hash_t *hash) {
   size_t size = 1 << hash->bits;
-  LuaIO_hlist_head_t* slots = hash->slots;
+  LuaIO_hlist_head_t *slots = hash->slots;
 
-  LuaIO_hlist_head_t* current_slot;
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *current_slot;
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
   for (size_t i = 0; i < size; i++) {
     current_slot = &slots[i];
     while (!LuaIO_hlist_is_empty(current_slot)) {
@@ -93,16 +93,16 @@ void LuaIO_hash_destroy(LuaIO_hash_t* hash) {
   LuaIO_free(hash);
 }
 
-void LuaIO_hash_str_set(LuaIO_hash_t* hash, char* key, size_t n, void* pointer) {
+void LuaIO_hash_str_set(LuaIO_hash_t *hash, char *key, size_t n, void *pointer) {
   if (hash->items >= hash->max_items) {
     LuaIO_hash_rehash(hash);
   }
 
   size_t hash_key = hash->hash(key, n);
   size_t index = LuaIO_hash_slot(hash_key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
   int cmp;
 
   if (!LuaIO_hlist_is_empty(slot)) {
@@ -138,12 +138,12 @@ void LuaIO_hash_str_set(LuaIO_hash_t* hash, char* key, size_t n, void* pointer) 
   hash->items++;
 }
 
-void* LuaIO_hash_str_get(LuaIO_hash_t* hash, const char* key, size_t n) {
+void *LuaIO_hash_str_get(LuaIO_hash_t *hash, const char *key, size_t n) {
   size_t hash_key = hash->hash(key, n);
   size_t index = LuaIO_hash_slot(hash_key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
   int cmp;
 
   if (!LuaIO_hlist_is_empty(slot)) {
@@ -164,12 +164,12 @@ void* LuaIO_hash_str_get(LuaIO_hash_t* hash, const char* key, size_t n) {
   return NULL;
 }
 
-void LuaIO_hash_str_remove(LuaIO_hash_t* hash, char* key, size_t n) {
+void LuaIO_hash_str_remove(LuaIO_hash_t *hash, const char *key, size_t n) {
   size_t hash_key = hash->hash(key, n);
   size_t index = LuaIO_hash_slot(hash_key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
   int cmp;
 
   if (!LuaIO_hlist_is_empty(slot)) {
@@ -190,15 +190,15 @@ void LuaIO_hash_str_remove(LuaIO_hash_t* hash, char* key, size_t n) {
   }
 }
 
-void LuaIO_hash_int_set(LuaIO_hash_t* hash, size_t key, void* pointer) {
+void LuaIO_hash_int_set(LuaIO_hash_t *hash, size_t key, void *pointer) {
   if (hash->items >= hash->max_items) {
     LuaIO_hash_rehash(hash);
   }
 
   size_t index = LuaIO_hash_slot(key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
 
   if (!LuaIO_hlist_is_empty(slot)) {
     LuaIO_hlist_for_each(pos, slot) {
@@ -228,11 +228,11 @@ void LuaIO_hash_int_set(LuaIO_hash_t* hash, size_t key, void* pointer) {
   hash->items++;
 }
 
-void* LuaIO_hash_int_get(LuaIO_hash_t* hash, size_t key) {
+void *LuaIO_hash_int_get(LuaIO_hash_t *hash, size_t key) {
   size_t index = LuaIO_hash_slot(key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
 
   if (!LuaIO_hlist_is_empty(slot)) {
     LuaIO_hlist_for_each(pos, slot) {
@@ -249,11 +249,11 @@ void* LuaIO_hash_int_get(LuaIO_hash_t* hash, size_t key) {
   return NULL;
 }
 
-void LuaIO_hash_int_remove(LuaIO_hash_t* hash, size_t key) {
+void LuaIO_hash_int_remove(LuaIO_hash_t *hash, size_t key) {
   size_t index = LuaIO_hash_slot(key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
 
   if (!LuaIO_hlist_is_empty(slot)) {
     LuaIO_hlist_for_each(pos, slot) {
@@ -269,15 +269,15 @@ void LuaIO_hash_int_remove(LuaIO_hash_t* hash, size_t key) {
   }
 }
 
-void LuaIO_hash_int_set_value(LuaIO_hash_t* hash, size_t key, int value) {
+void LuaIO_hash_int_set_value(LuaIO_hash_t *hash, size_t key, int value) {
   if (hash->items >= hash->max_items) {
     LuaIO_hash_rehash(hash);
   }
 
   size_t index = LuaIO_hash_slot(key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
 
   if (!LuaIO_hlist_is_empty(slot)) {
     LuaIO_hlist_for_each(pos, slot) {
@@ -296,11 +296,11 @@ void LuaIO_hash_int_set_value(LuaIO_hash_t* hash, size_t key, int value) {
   hash->items++;
 }
 
-int LuaIO_hash_int_get_value(LuaIO_hash_t* hash, size_t key, int* value) {
+int LuaIO_hash_int_get_value(LuaIO_hash_t *hash, size_t key, int *value) {
   size_t index = LuaIO_hash_slot(key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
 
   if (!LuaIO_hlist_is_empty(slot)) {
     LuaIO_hlist_for_each(pos, slot) {
@@ -315,11 +315,11 @@ int LuaIO_hash_int_get_value(LuaIO_hash_t* hash, size_t key, int* value) {
   return 1;
 }
 
-void LuaIO_hash_int_remove_value(LuaIO_hash_t* hash, size_t key) {
+void LuaIO_hash_int_remove_value(LuaIO_hash_t *hash, size_t key) {
   size_t index = LuaIO_hash_slot(key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
 
   if (!LuaIO_hlist_is_empty(slot)) {
     LuaIO_hlist_for_each(pos, slot) {
@@ -334,11 +334,11 @@ void LuaIO_hash_int_remove_value(LuaIO_hash_t* hash, size_t key) {
   }
 }
 
-int LuaIO_hash_int_get_and_remove_value(LuaIO_hash_t* hash, size_t key, int* value) {
+int LuaIO_hash_int_get_and_remove_value(LuaIO_hash_t *hash, size_t key, int *value) {
   size_t index = LuaIO_hash_slot(key, hash->bits);
-  LuaIO_hlist_head_t* slot = &hash->slots[index];
-  LuaIO_hlist_node_t* pos;
-  LuaIO_hash_item_t* item;
+  LuaIO_hlist_head_t *slot = &hash->slots[index];
+  LuaIO_hlist_node_t *pos;
+  LuaIO_hash_item_t *item;
 
   if (!LuaIO_hlist_is_empty(slot)) {
     LuaIO_hlist_for_each(pos, slot) {

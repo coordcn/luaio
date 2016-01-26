@@ -18,13 +18,13 @@ void LuaIO_timer_set_max_free_timers(size_t max_free_timers) {
   LuaIO_timer_pool.max_free_timers = max_free_timers;
 }
 
-uv_timer_t* LuaIO_timer_alloc() {
-  LuaIO_list_t* free_list = &(LuaIO_timer_pool.free_list);
-  LuaIO_timer_t* LuaIO_timer;
-  uv_timer_t* timer;
+uv_timer_t *LuaIO_timer_alloc() {
+  LuaIO_list_t *free_list = &(LuaIO_timer_pool.free_list);
+  LuaIO_timer_t *LuaIO_timer;
+  uv_timer_t *timer;
 
   if (!LuaIO_list_is_empty(free_list)) {
-    LuaIO_list_t* list = free_list->next;
+    LuaIO_list_t *list = free_list->next;
     LuaIO_timer = LuaIO_list_entry(list, LuaIO_timer_t, list);
     timer = &LuaIO_timer->timer;
     LuaIO_list_remove(list);
@@ -40,15 +40,20 @@ uv_timer_t* LuaIO_timer_alloc() {
   return timer;
 }
 
-void LuaIO_timer_free(uv_timer_t* timer) {
+static void LuaIO_timer_onclose(uv_handle_t *handle) {
+  LuaIO_timer_t *LuaIO_timer = container_of(handle, LuaIO_timer_t, timer);
+  LuaIO_free(LuaIO_timer);
+}
+
+void LuaIO_timer_free(uv_timer_t *timer) {
   if (timer != NULL) {
-    LuaIO_timer_t* LuaIO_timer = LuaIO_list_entry(timer, LuaIO_timer_t, timer);
+    LuaIO_timer_t *LuaIO_timer = LuaIO_list_entry(timer, LuaIO_timer_t, timer);
 
     if (LuaIO_timer_pool.free_timers < LuaIO_timer_pool.max_free_timers) {
       LuaIO_list_insert_head(&LuaIO_timer->list, &(LuaIO_timer_pool.free_list));
       LuaIO_timer_pool.free_timers++;
     } else {
-      LuaIO_free(LuaIO_timer);
+      uv_close((uv_handle_t*)timer, LuaIO_timer_onclose);
     }
   }
 }

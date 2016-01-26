@@ -10,7 +10,6 @@
 #include "lua.h"
 #include "lauxlib.h"
 #include "uv.h"
-#include "ares.h"
 
 #include "config.h"
 
@@ -52,24 +51,28 @@
   lua_pushcfunction(L, fun); \
   lua_setfield(L, -2, name); \
 
+#define LuaIO_setinteger(key, value) \
+  lua_pushinteger(L, value); \
+  lua_setfield(L, -2, key); \
+
 /*init.c*/
-lua_State* LuaIO_get_main_thread();
+lua_State *LuaIO_get_main_thread();
 
 /*LuaIO.c*/
-int LuaIO_cannot_change(lua_State* L);
+int LuaIO_cannot_change(lua_State *L);
 
-static inline void LuaIO_resume(lua_State* L, int nargs) {
+static inline void LuaIO_resume(lua_State *L, int nargs) {
   int ret = lua_resume(L, NULL, nargs);
   if (ret > LUA_YIELD) {
-    const char* error_string = lua_tostring(L, -1);
+    const char *error_string = lua_tostring(L, -1);
     luaL_error(L, "lua_resume() error: %s\n", error_string ? error_string : "unknow");
   }
 }
 
-static inline void LuaIO_pcall(lua_State* L, int nargs) {
+static inline void LuaIO_pcall(lua_State *L, int nargs) {
   int ret = lua_pcall(L, nargs, 0, 0);
   if (ret != LUA_OK) {
-    const char* error_string = lua_tostring(L, -1);
+    const char *error_string = lua_tostring(L, -1);
     luaL_error(L, "lua_pcall() error: %s\n", error_string ? error_string : "unknow");
   }
 }

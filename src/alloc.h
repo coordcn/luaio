@@ -9,9 +9,9 @@
 
 #include "config.h"
 
-void* LuaIO_malloc(size_t size);
-void* LuaIO_calloc(size_t size);
-void* LuaIO_realloc(void* p, size_t size);
+void *LuaIO_malloc(size_t size);
+void *LuaIO_calloc(size_t size);
+void *LuaIO_realloc(void *p, size_t size);
 #define LuaIO_free                  free
 
 /* Linux has memalign() or posix_memalign()
@@ -40,7 +40,7 @@ void* LuaIO_memalign(size_t align, size_t size);
 #define LuaIO_memcpy                memcpy
 #define LuaIO_memmove               memmove
 #define LuaIO_memcmp                memcmp
-#define LuaIO_memzero(p, size)      LuaIO_memset(p, 0, size)
+#define LuaIO_memzero(p, size)      memset(p, 0, size)
 
 #define LuaIO_strlen                strlen
 #define LuaIO_strncmp               strncmp
@@ -70,8 +70,8 @@ void* LuaIO_memalign(size_t align, size_t size);
 #define LuaIO_strcmp8(s, c0, c1, c2, c3, c4, c5, c6, c7) \
   (s[0] == c0 && s[1] == c1 && s[2] == c2 && s[3] == c3 && s[4] == c4 && s[5] == c5 && s[6] == c6 && s[7] == c7)
   
-static inline char* LuaIO_strndup(const char* src, size_t n) {
-  char* dst = LuaIO_malloc(n + 1);
+static inline char *LuaIO_strndup(const char *src, size_t n) {
+  char *dst = LuaIO_malloc(n + 1);
   if (dst == NULL) return NULL;
 
   dst[n] = '\0';

@@ -10,10 +10,10 @@
 #include "lua.h"
 #include "lauxlib.h"
 
-static inline int LuaIO_get_integer(lua_State* L, 
+static inline int LuaIO_get_integer(lua_State *L, 
                                     int index, 
-                                    const char* name, 
-                                    lua_Integer* value) {
+                                    const char *name, 
+                                    lua_Integer *value) {
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -29,10 +29,10 @@ static inline int LuaIO_get_integer(lua_State* L,
   return ret;
 }
 
-static inline int LuaIO_check_integer(lua_State* L, 
+static inline int LuaIO_check_integer(lua_State *L, 
                                       int index, 
-                                      const char* name, 
-                                      lua_Integer* value) {
+                                      const char *name, 
+                                      lua_Integer *value) {
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -46,10 +46,10 @@ static inline int LuaIO_check_integer(lua_State* L,
   return ret;
 }
 
-static inline int LuaIO_get_number(lua_State* L, 
+static inline int LuaIO_get_number(lua_State *L, 
                                    int index, 
-                                   const char* name, 
-                                   lua_Number* value) {
+                                   const char *name, 
+                                   lua_Number *value) {
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -65,10 +65,10 @@ static inline int LuaIO_get_number(lua_State* L,
   return ret;
 }
 
-static inline int LuaIO_check_number(lua_State* L, 
+static inline int LuaIO_check_number(lua_State *L, 
                                      int index, 
-                                     const char* name, 
-                                     lua_Number* value) {
+                                     const char *name, 
+                                     lua_Number *value) {
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -83,10 +83,10 @@ static inline int LuaIO_check_number(lua_State* L,
 
 }
 
-static inline int LuaIO_get_string(lua_State* L, 
+static inline int LuaIO_get_string(lua_State *L, 
                                    int index, 
-                                   const char* name, 
-                                   const char* value __attribute__((unused))) {
+                                   const char *name, 
+                                   const char *value __attribute__((unused))) {
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -102,10 +102,10 @@ static inline int LuaIO_get_string(lua_State* L,
   return ret;
 }
 
-static inline int LuaIO_check_string(lua_State* L, 
+static inline int LuaIO_check_string(lua_State *L, 
                                      int index, 
-                                     const char* name, 
-                                     const char* value __attribute__((unused))) {
+                                     const char *name, 
+                                     const char *value __attribute__((unused))) {
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -119,10 +119,10 @@ static inline int LuaIO_check_string(lua_State* L,
   return ret;
 }
 
-static inline int LuaIO_get_lstring(lua_State* L, 
+static inline int LuaIO_get_lstring(lua_State *L, 
                                     int index, 
-                                    const char* name, 
-                                    const char* value __attribute__((unused)), size_t* n) {
+                                    const char *name, 
+                                    const char *value __attribute__((unused)), size_t* n) {
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -138,10 +138,10 @@ static inline int LuaIO_get_lstring(lua_State* L,
   return ret;
 }
 
-static inline int LuaIO_check_lstring(lua_State* L, 
+static inline int LuaIO_check_lstring(lua_State *L, 
                                       int index, 
-                                      const char* name, 
-                                      const char* value __attribute__((unused)), 
+                                      const char *name, 
+                                      const char *value __attribute__((unused)), 
                                       size_t* n) {
   int ret = 1;
 
@@ -156,10 +156,10 @@ static inline int LuaIO_check_lstring(lua_State* L,
   return ret;
 }
 
-static inline int LuaIO_get_boolean(lua_State* L, 
+static inline int LuaIO_get_boolean(lua_State *L, 
                                     int index, 
-                                    const char* name, 
-                                    int* value) {
+                                    const char *name, 
+                                    int *value) {
   int ret = 1;
 
   lua_pushstring(L, name);
@@ -175,10 +175,10 @@ static inline int LuaIO_get_boolean(lua_State* L,
   return ret;
 }
 
-static inline int LuaIO_check_boolean(lua_State* L, 
+static inline int LuaIO_check_boolean(lua_State *L, 
                                       int index, 
-                                      const char* name, 
-                                      int* value) {
+                                      const char *name, 
+                                      int *value) {
   int ret = 1;
 
   lua_pushstring(L, name);

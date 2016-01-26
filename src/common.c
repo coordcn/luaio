@@ -6,14 +6,14 @@
 
 #include "common.h"
 
-int LuaIO_cannot_change(lua_State* L) {
+int LuaIO_cannot_change(lua_State *L) {
   return luaL_error(L, "table fields cannot be changed.");
 }
 
-int LuaIO_parse_socket_address(lua_State* L, struct sockaddr_storage* address) {
+int LuaIO_parse_socket_address(lua_State *L, struct sockaddr_storage *address) {
   char ip[INET6_ADDRSTRLEN];
-  struct sockaddr_in* addr_in;
-  struct sockaddr_in6* addr_in6;
+  struct sockaddr_in *addr_in;
+  struct sockaddr_in6 *addr_in6;
   int family = 0;
   int port = 0;
 

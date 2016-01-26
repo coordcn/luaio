@@ -5,6 +5,7 @@
  */
 
 #include "LuaIO.h"
+#include "ares.h"
 
 #define ARES_ERRNO_MAP(XX)                                                  \
   XX(ENODATA, "DNS server returned answer with no data")                    \
@@ -53,9 +54,9 @@ enum LuaIO_ares_errno {
     msg = str; \
     break;
 
-static int LuaIO_errno_parse(lua_State* L) {
+static int LuaIO_errno_parse(lua_State *L) {
   int err = luaL_checkinteger(L, 1);
-  const char* msg;
+  const char *msg;
 
   switch (err) {
     case 0:
@@ -82,7 +83,7 @@ static int LuaIO_errno_parse(lua_State* L) {
 
 #undef UV_ERRSTR_GEN
 
-static void LuaIO_errno_setup_constants(lua_State* L) {
+static void LuaIO_errno_setup_constants(lua_State *L) {
 #define UV_ERRNO_GEN(name, _) \
   lua_pushinteger(L, UV_##name); \
   lua_setfield(L, -2, "UV_"#name);
@@ -109,7 +110,7 @@ int luaopen_errno(lua_State *L) {
   luaL_Reg lib[] = {
     { "parse", LuaIO_errno_parse },
     { "__newindex", LuaIO_cannot_change },
-    { NULL, NULL}
+    { NULL, NULL }
   };
 
   lua_createtable(L, 0, 0);

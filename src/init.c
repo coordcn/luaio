@@ -8,32 +8,28 @@
 #include "LuaIO.h"
 
 static uint64_t LuaIO_start_time;
-static lua_State* LuaIO_main_thread;
+static lua_State *LuaIO_main_thread;
 
-static void LuaIO_sleep_timeout(uv_timer_t* handle) {
-  lua_State* L = handle->data;
+static void LuaIO_sleep_timeout(uv_timer_t *handle) {
+  lua_State *L = handle->data;
   LuaIO_timer_free(handle);
   lua_pushinteger(L, 0);
   LuaIO_resume(L, 1);
 }
 
-static int LuaIO_sleep(lua_State* L) {
+static int LuaIO_sleep(lua_State *L) {
   lua_Integer delay = luaL_checkinteger(L, 1);
-  uv_timer_t* timer = LuaIO_timer_alloc();
+  uv_timer_t *timer = LuaIO_timer_alloc();
   if (timer == NULL) {
     lua_pushinteger(L, UV_ENOMEM);
     return 1;
   }
 
   timer->data = L;
-  int err = uv_timer_start(timer,
-                           LuaIO_sleep_timeout,
-                           delay,
-                           0);
-  if (err < 0) {
-    lua_pushinteger(L, err);
-    return 1;
-  }
+  uv_timer_start(timer,
+                 LuaIO_sleep_timeout,
+                 delay,
+                 0);
 
   return lua_yield(L, 0);
 }
@@ -50,6 +46,7 @@ static void LuaIO_platform_init() {
 int LuaIO_init(lua_State *L, int argc, char* argv[]) {
   /*config.h*/
   LuaIO_platform_init();
+  LuaIO_date_init(); 
   LuaIO_pmemory_init(LUAIO_PMEMORY_MAX_FREE_CHUNKS);
   LuaIO_timer_init(LUAIO_TIMER_MAX_FREE_TIMERS);
   LuaIO_dns_init(L);
@@ -77,6 +74,10 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
   /*process*/
   lua_pushcfunction(L, luaopen_process);
   lua_setfield(L, -2, "process");
+  
+  /*date*/
+  lua_pushcfunction(L, luaopen_date);
+  lua_setfield(L, -2, "date");
   
   /*read_buffer*/
   lua_pushcfunction(L, luaopen_read_buffer);
@@ -119,7 +120,7 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
   return 0;
 }
 
-lua_State* LuaIO_get_main_thread() {
+lua_State *LuaIO_get_main_thread() {
   return LuaIO_main_thread;
 }
 

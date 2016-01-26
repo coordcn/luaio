@@ -7,8 +7,8 @@
 #include "init.h"
 #include "LuaIO.h"
 
-static int LuaIO_system_cpuinfo(lua_State* L) {
-  uv_cpu_info_t* cpu_infos;
+static int LuaIO_system_cpuinfo(lua_State *L) {
+  uv_cpu_info_t *cpu_infos;
   int count;
 
   int err = uv_cpu_info(&cpu_infos, &count);
@@ -46,7 +46,7 @@ static int LuaIO_system_cpuinfo(lua_State* L) {
   return 1;
 }
 
-static int LuaIO_system_meminfo(lua_State* L) {
+static int LuaIO_system_meminfo(lua_State *L) {
   uint64_t total = uv_get_total_memory();
   uint64_t free = uv_get_free_memory();
   
@@ -59,7 +59,7 @@ static int LuaIO_system_meminfo(lua_State* L) {
   return 1;
 }
 
-static int LuaIO_system_loadavg(lua_State* L) {
+static int LuaIO_system_loadavg(lua_State *L) {
   double loadavg[3];
   uv_loadavg(loadavg);
   
@@ -75,14 +75,14 @@ static int LuaIO_system_loadavg(lua_State* L) {
 }
 
 /*nanoseconds*/
-static int LuaIO_system_hrtime(lua_State* L) {
+static int LuaIO_system_hrtime(lua_State *L) {
   uint64_t hrtime = uv_hrtime();
   lua_pushinteger(L, hrtime);
   return 1;
 }
 
 /*seconds ?*/
-static int LuaIO_system_uptime(lua_State* L) {
+static int LuaIO_system_uptime(lua_State *L) {
   double uptime;
   int err = uv_uptime(&uptime);
   if (err < 0)return luaL_error(L, "system.uptime() error: %s", uv_strerror(err));
@@ -93,9 +93,9 @@ static int LuaIO_system_uptime(lua_State* L) {
 }
 
 int luaopen_system(lua_State *L) {
-  const char* type;
-  const char* release;
-  const char* endian;
+  const char *type;
+  const char *release;
+  const char *endian;
 
   struct utsname info;
   if (uname(&info) < 0) {

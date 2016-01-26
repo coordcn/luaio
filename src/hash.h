@@ -25,7 +25,7 @@
 #define LuaIO_hash         LuaIO_hash_DJB
 #define LuaIO_hash_lower   LuaIO_hash_DJB_lower
 
-static inline size_t LuaIO_hash_DJB(const char* str, size_t n) {
+static inline size_t LuaIO_hash_DJB(const char *str, size_t n) {
   size_t hash = 5381;
 
   for (size_t i = 0; i < n; i++) {
@@ -35,7 +35,7 @@ static inline size_t LuaIO_hash_DJB(const char* str, size_t n) {
   return hash;
 }
 
-static inline size_t LuaIO_hash_DJB_lower(const char* str, size_t n) {
+static inline size_t LuaIO_hash_DJB_lower(const char *str, size_t n) {
   size_t hash = 5381;
   
   for (size_t i = 0; i < n; i++) {
@@ -71,32 +71,32 @@ static inline size_t LuaIO_hash_slot64(size_t value, size_t bits) {
   return (value * LUAIO_GOLDEN_RATIO_PRIME64) >> (64 - bits);
 }
 
-typedef void (*LuaIO_hash_free_fn)(void* p);
-typedef int (*LuaIO_hash_strcmp_fn)(const char* s1, const char* s2, size_t n);
-typedef size_t (*LuaIO_hash_fn)(const char* s, size_t n);
+typedef void (*LuaIO_hash_free_fn)(void *p);
+typedef int (*LuaIO_hash_strcmp_fn)(const char *s1, const char *s2, size_t n);
+typedef size_t (*LuaIO_hash_fn)(const char *s, size_t n);
 
 typedef struct {
-  size_t max_items;
-  size_t max_age;
-  size_t items;
-  size_t bits;
-  LuaIO_hash_free_fn free;
-  LuaIO_hash_strcmp_fn str_cmp;
-  LuaIO_hash_fn hash;
-  LuaIO_hlist_head_t* slots;
+  size_t                max_items;
+  size_t                max_age;
+  size_t                items;
+  size_t                bits;
+  LuaIO_hash_free_fn    free;
+  LuaIO_hash_strcmp_fn  str_cmp;
+  LuaIO_hash_fn         hash;
+  LuaIO_hlist_head_t    *slots;
 } LuaIO_hash_t;
 
 typedef struct {
-  LuaIO_hlist_node_t node;
-  void* pointer;
-  size_t hash;
-  size_t expires;
-  size_t key_length;
-  char* key;
-  int value;
+  LuaIO_hlist_node_t  node;
+  void                *pointer;
+  size_t              hash;
+  size_t              expires;
+  size_t              key_length;
+  char                *key;
+  int                 value;
 } LuaIO_hash_item_t;
 
-LuaIO_hash_t* LuaIO_hash__create(size_t bits, 
+LuaIO_hash_t *LuaIO_hash__create(size_t bits, 
                                  size_t max_age, 
                                  LuaIO_hash_free_fn free_fn, 
                                  LuaIO_hash_strcmp_fn strcmp_fn, 
@@ -114,20 +114,20 @@ LuaIO_hash_t* LuaIO_hash__create(size_t bits,
 #define LuaIO_hash_create_strcase_pointer(bits, max_age, free) \
   LuaIO_hash__create(bits, max_age, free, LuaIO_strncasecmp, LuaIO_hash_lower)
 
-void LuaIO_hash_destroy(LuaIO_hash_t* hash);
+void LuaIO_hash_destroy(LuaIO_hash_t *hash);
 
-void LuaIO_hash_str_set(LuaIO_hash_t* hash, char* key, size_t n, void* pointer);
-void* LuaIO_hash_str_get(LuaIO_hash_t* hash, const char* key, size_t n);
-void LuaIO_hash_str_remove(LuaIO_hash_t* hash, char* key, size_t n);
+void LuaIO_hash_str_set(LuaIO_hash_t *hash, char *key, size_t n, void *pointer);
+void *LuaIO_hash_str_get(LuaIO_hash_t *hash, const char *key, size_t n);
+void LuaIO_hash_str_remove(LuaIO_hash_t *hash, const char *key, size_t n);
 
-void LuaIO_hash_int_set(LuaIO_hash_t* hash, size_t key, void* pointer);
-void* LuaIO_hash_int_get(LuaIO_hash_t* hash, size_t key);
-void LuaIO_hash_int_remove(LuaIO_hash_t* hash, size_t key);
+void LuaIO_hash_int_set(LuaIO_hash_t *hash, size_t key, void *pointer);
+void *LuaIO_hash_int_get(LuaIO_hash_t *hash, size_t key);
+void LuaIO_hash_int_remove(LuaIO_hash_t *hash, size_t key);
 
 /*just for thread -> thread_ref*/
-void LuaIO_hash_int_set_value(LuaIO_hash_t* hash, size_t key, int value);
-int LuaIO_hash_int_get_value(LuaIO_hash_t* hash, size_t key, int* value);
-void LuaIO_hash_int_remove_value(LuaIO_hash_t* hash, size_t key);
-int LuaIO_hash_int_get_and_remove_value(LuaIO_hash_t* hash, size_t key, int* value);
+void LuaIO_hash_int_set_value(LuaIO_hash_t *hash, size_t key, int value);
+int LuaIO_hash_int_get_value(LuaIO_hash_t *hash, size_t key, int *value);
+void LuaIO_hash_int_remove_value(LuaIO_hash_t *hash, size_t key);
+int LuaIO_hash_int_get_and_remove_value(LuaIO_hash_t *hash, size_t key, int *value);
 
 #endif /* LUAIO_HASH_H */

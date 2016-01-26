@@ -28,73 +28,73 @@
  */
 
 struct LuaIO_list_s {
-  struct LuaIO_list_s* next;
-  struct LuaIO_list_s* prev;
+  struct LuaIO_list_s *next;
+  struct LuaIO_list_s *prev;
 };
 
 typedef struct LuaIO_list_s LuaIO_list_t;
 
-static inline void LuaIO_list_init(LuaIO_list_t* list) {
+static inline void LuaIO_list_init(LuaIO_list_t *list) {
   list->next = list;
   list->prev = list;
 }
 
-static inline void LuaIO_list__insert(LuaIO_list_t* new, 
-                                      LuaIO_list_t* prev, 
-                                      LuaIO_list_t* next) {
+static inline void LuaIO_list__insert(LuaIO_list_t *new, 
+                                      LuaIO_list_t *prev, 
+                                      LuaIO_list_t *next) {
   next->prev = new;
   new->next = next;
   new->prev = prev;
   prev->next = new;
 }
 
-static inline void LuaIO_list_insert_head(LuaIO_list_t* new,
-                                          LuaIO_list_t* head) {
+static inline void LuaIO_list_insert_head(LuaIO_list_t *new,
+                                          LuaIO_list_t *head) {
   LuaIO_list__insert(new, head, head->next);
 }
 
-static inline void LuaIO_list_insert_tail(LuaIO_list_t* new, 
-                                          LuaIO_list_t* head) {
+static inline void LuaIO_list_insert_tail(LuaIO_list_t *new, 
+                                          LuaIO_list_t *head) {
   LuaIO_list__insert(new, head->prev, head);
 }
 
-static inline void LuaIO_list__remove(LuaIO_list_t* prev, 
-                                      LuaIO_list_t* next) {
+static inline void LuaIO_list__remove(LuaIO_list_t *prev, 
+                                      LuaIO_list_t *next) {
   prev->next = next;
   next->prev = prev;
 }
 
-static inline void LuaIO_list_remove(LuaIO_list_t* entry) {
+static inline void LuaIO_list_remove(LuaIO_list_t *entry) {
   LuaIO_list__remove(entry->prev, entry->next);
 }
 
-static inline void LuaIO_list_remove_init(LuaIO_list_t* entry) {
+static inline void LuaIO_list_remove_init(LuaIO_list_t *entry) {
   LuaIO_list__remove(entry->prev, entry->next);
   LuaIO_list_init(entry);
 }
 
-static inline void LuaIO_list_move_head(LuaIO_list_t* list, 
-                                        LuaIO_list_t* head) {
+static inline void LuaIO_list_move_head(LuaIO_list_t *list, 
+                                        LuaIO_list_t *head) {
   LuaIO_list__remove(list->prev, list->next);
   LuaIO_list_insert_head(list, head);
 }
 
-static inline void LuaIO_list_move_tail(LuaIO_list_t* list, 
-                                        LuaIO_list_t* head) {
+static inline void LuaIO_list_move_tail(LuaIO_list_t *list, 
+                                        LuaIO_list_t *head) {
   LuaIO_list__remove(list->prev, list->next);
   LuaIO_list_insert_tail(list, head);
 }
 
-static inline int LuaIO_list_is_empty(const LuaIO_list_t* head) {
+static inline int LuaIO_list_is_empty(const LuaIO_list_t *head) {
   return head->next == head;
 }
 
-static inline int LuaIO_list_is_single(const LuaIO_list_t* head) {
+static inline int LuaIO_list_is_single(const LuaIO_list_t *head) {
   return !LuaIO_list_is_empty(head) && (head->next == head->prev);
 }
 
-static inline int LuaIO_list_is_last(const LuaIO_list_t* list, 
-                                     const LuaIO_list_t* head) {
+static inline int LuaIO_list_is_last(const LuaIO_list_t *list, 
+                                     const LuaIO_list_t *head) {
   return list->next == head;
 }
 
@@ -179,12 +179,12 @@ static inline int LuaIO_list_is_last(const LuaIO_list_t* list,
  */
 
 struct LuaIO_hlist_node_s {
-  struct LuaIO_hlist_node_s* next;
-  struct LuaIO_hlist_node_s** pprev;
+  struct LuaIO_hlist_node_s *next;
+  struct LuaIO_hlist_node_s **pprev;
 };
 
 struct LuaIO_hlist_head_s {
-  struct LuaIO_hlist_node_s* first;
+  struct LuaIO_hlist_node_s *first;
 };
 
 typedef struct LuaIO_hlist_node_s LuaIO_hlist_node_t;
@@ -192,36 +192,36 @@ typedef struct LuaIO_hlist_head_s LuaIO_hlist_head_t;
 
 #define LuaIO_hlist_head_init(ptr) ((ptr)->first = NULL)
 
-static inline void LuaIO_hlist_node_init(LuaIO_hlist_node_t* node) {
+static inline void LuaIO_hlist_node_init(LuaIO_hlist_node_t *node) {
   node->next = NULL;
   node->pprev = NULL;
 }
 
-static inline int LuaIO_hlist_is_empty(LuaIO_hlist_head_t* head) {
+static inline int LuaIO_hlist_is_empty(LuaIO_hlist_head_t *head) {
   return !head->first;
 }
 
-static inline int LuaIO_hlist_is_single(LuaIO_hlist_head_t* head) {
+static inline int LuaIO_hlist_is_single(LuaIO_hlist_head_t *head) {
   return head->first && !head->first->next;
 }
 
-static inline void LuaIO_hlist_remove(LuaIO_hlist_node_t* node) {
+static inline void LuaIO_hlist_remove(LuaIO_hlist_node_t *node) {
   if (node->pprev) {
-    LuaIO_hlist_node_t* next = node->next;
-    LuaIO_hlist_node_t** pprev = node->pprev;
+    LuaIO_hlist_node_t *next = node->next;
+    LuaIO_hlist_node_t **pprev = node->pprev;
     *pprev = next;
     if(next) next->pprev = pprev;
   }
 }
 
-static inline void LuaIO_hlist_remove_init(LuaIO_hlist_node_t* node) {
+static inline void LuaIO_hlist_remove_init(LuaIO_hlist_node_t *node) {
   LuaIO_hlist_remove(node);
   LuaIO_hlist_node_init(node);
 }
 
-static inline void LuaIO_hlist_insert_head(LuaIO_hlist_node_t* node,
-                                           LuaIO_hlist_head_t* head) {
-  LuaIO_hlist_node_t* first = head->first;
+static inline void LuaIO_hlist_insert_head(LuaIO_hlist_node_t *node,
+                                           LuaIO_hlist_head_t *head) {
+  LuaIO_hlist_node_t *first = head->first;
   node->next = first;
   if (first) first->pprev = &node->next;
   head->first = node;

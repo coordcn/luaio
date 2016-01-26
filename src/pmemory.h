@@ -15,7 +15,7 @@
 #include "alloc.h"
 #include "palloc.h"
 
-#define LUAIO_PMEMORY_ALIGNMENT                     16
+#define LUAIO_PMEMORY_ALIGNMENT                     sizeof(unsigned long)
 #define LUAIO_PMEMORY_SLOT_SIZE                     16
 
 #define LUAIO_PMEMORY_CHUNK_STEP_SMALL              256
@@ -50,7 +50,7 @@
 void LuaIO_pmemory_init(size_t max_free_chunks);
 void LuaIO_pmemory_set_max_free_chunks(size_t slot, size_t max_free_chunks);
 
-void* LuaIO_pmemory__alloc(size_t size, size_t* capacity);
-void LuaIO_pmemory__free(void* p);
+void *LuaIO_pmemory__alloc(size_t size, size_t *capacity);
+void LuaIO_pmemory__free(void *p);
 
 #endif /* LUAIO_PMEMORY_H */

@@ -9,25 +9,25 @@
 
 #include "LuaIO.h"
 
-int LuaIO_parse_socket_address(lua_State* L, struct sockaddr_storage* addr);
+int LuaIO_parse_socket_address(lua_State *L, struct sockaddr_storage *addr);
 
 #define LuaIO_check_data(L, index, name) \
-  uv_buf_t* bufs; \
-  uv_buf_t* tmp = NULL; \
+  uv_buf_t *bufs; \
+  uv_buf_t *tmp = NULL; \
   uv_buf_t buf; \
   size_t count; \
   size_t len; \
-  char* read_pos; \
+  char *read_pos; \
   size_t bytes = 0; \
   int type = lua_type(L, index); \
   if (type == LUA_TSTRING) { \
-    buf.base = (char*) lua_tolstring(L, index, &len); \
+    buf.base = (char*)lua_tolstring(L, index, &len); \
     buf.len = len; \
     bytes += len; \
     count = 1; \
     bufs = &buf; \
   } else if (type == LUA_TUSERDATA) { \
-    LuaIO_buffer_t* buffer = lua_touserdata(L, index); \
+    LuaIO_buffer_t *buffer = lua_touserdata(L, index); \
     if (!LuaIO_is_buffer(buffer->type)) { \
       return luaL_argerror(L, index, #name" error: data is userdata, but not Buffer\n"); \
     } \
@@ -63,7 +63,7 @@ int LuaIO_parse_socket_address(lua_State* L, struct sockaddr_storage* addr);
         bufs[i].len = len; \
         bytes += len; \
       } else if (ttype == LUA_TUSERDATA) { \
-        LuaIO_buffer_t* buffer = lua_touserdata(L, -1); \
+        LuaIO_buffer_t *buffer = lua_touserdata(L, -1); \
         if (!LuaIO_is_buffer(buffer->type)) { \
           return luaL_error(L, #name" error: data[%d] is userdata, but not Buffer\n", pos); \
         } \

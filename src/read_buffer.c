@@ -9,7 +9,7 @@
 static char LuaIO_read_buffer_metatable_key;
 
 #define LuaIO_buffer_check_read_buffer(L, name) \
-  LuaIO_buffer_t* buffer = lua_touserdata(L, 1); \
+  LuaIO_buffer_t *buffer = lua_touserdata(L, 1); \
   if (buffer == NULL || buffer->type != LUAIO_TYPE_READ_BUFFER) { \
     return luaL_argerror(L, 1, "buffer:"#name" error: buffer must be [userdata](read_buffer)\n"); \
   }
@@ -26,13 +26,13 @@ static char LuaIO_read_buffer_metatable_key;
 /* local read_buffer = require('read_buffer')
  * local buffer, err = read_buffer.new(size)
  */
-static int LuaIO_read_buffer_new(lua_State* L) {
+static int LuaIO_read_buffer_new(lua_State *L) {
   lua_Integer size = luaL_checkinteger(L, 1);
   if (size <= 0) {
     return luaL_argerror(L, 1, "read_buffer.new(size) error: size must be > 0\n"); 
   }
 
-  LuaIO_buffer_t* buffer = lua_newuserdata(L, sizeof(LuaIO_buffer_t));
+  LuaIO_buffer_t *buffer = lua_newuserdata(L, sizeof(LuaIO_buffer_t));
   if (buffer == NULL) {
     lua_pushnil(L);
     lua_pushinteger(L, UV_ENOMEM);
@@ -60,15 +60,15 @@ static int LuaIO_read_buffer_new(lua_State* L) {
 /* local data, err = buffer:read(n)  read n bytes data
  * local rest, err = buffer:read()   read rest data
  */
-static int LuaIO_buffer_read(lua_State* L) {
+static int LuaIO_buffer_read(lua_State *L) {
   LuaIO_buffer_check_read_buffer(L, read([n]));
   LuaIO_buffer_check_memory(L, read([n]));
 
   lua_Integer n = luaL_checkinteger(L, 2);
 
   int rest_size;
-  char* read_pos;
-  char* start;
+  char *read_pos;
+  char *start;
   if (n < 0) {
     read_pos = buffer->read_pos;
     start = buffer->start;
@@ -132,14 +132,14 @@ static int LuaIO_buffer_read(lua_State* L) {
 }
 
 /* local data, err = buf:readline() */
-static int LuaIO_buffer_readline(lua_State* L) {
+static int LuaIO_buffer_readline(lua_State *L) {
   LuaIO_buffer_check_read_buffer(L, readline());
   LuaIO_buffer_check_memory(L, readline());
 
-  char* read_pos = buffer->read_pos;
-  char* write_pos = buffer->write_pos;
-  char* pos = read_pos;
-  char* start;
+  char *read_pos = buffer->read_pos;
+  char *write_pos = buffer->write_pos;
+  char *pos = read_pos;
+  char *start;
   int flag = 0;
   int rest_size;
   char c;
@@ -203,8 +203,8 @@ static int LuaIO_buffer_readline(lua_State* L) {
   LuaIO_buffer_check_read_buffer(L, read_##type()); \
   LuaIO_buffer_check_memory(L, read_##type()); \
   \
-  char* start; \
-  char* read_pos = buffer->read_pos; \
+  char *start; \
+  char *read_pos = buffer->read_pos; \
   int rest_size = buffer->write_pos - read_pos; \
   assert(rest_size >= 0); \
   \
@@ -223,12 +223,12 @@ static int LuaIO_buffer_readline(lua_State* L) {
 } while (0)
 
 /* local data, err = buf:read_uint8() */
-static int LuaIO_buffer_read_uint8(lua_State* L) {
+static int LuaIO_buffer_read_uint8(lua_State *L) {
   LuaIO_buffer_read8(uint8_t, sizeof(uint8_t));
 }
 
 /* local data, err = buf:read_int8() */
-static int LuaIO_buffer_read_int8(lua_State* L) {
+static int LuaIO_buffer_read_int8(lua_State *L) {
   LuaIO_buffer_read8(int8_t, sizeof(int8_t));
 }
 
@@ -236,8 +236,8 @@ static int LuaIO_buffer_read_int8(lua_State* L) {
   LuaIO_buffer_check_read_buffer(L, read_##name()); \
   LuaIO_buffer_check_memory(L, read_##name()); \
   \
-  char* start; \
-  char* read_pos = buffer->read_pos; \
+  char *start; \
+  char *read_pos = buffer->read_pos; \
   int rest_size = buffer->write_pos - read_pos; \
   assert(rest_size >= 0); \
   \
@@ -263,27 +263,27 @@ static int LuaIO_buffer_read_int8(lua_State* L) {
   return 2; \
 } while (0)
 
-static int LuaIO_buffer_read_uint16_le(lua_State* L) {
+static int LuaIO_buffer_read_uint16_le(lua_State *L) {
   LuaIO_buffer_read_uint(uint16_le, uint16_t, sizeof(uint16_t), le16toh);
 }
 
-static int LuaIO_buffer_read_uint16_be(lua_State* L) {
+static int LuaIO_buffer_read_uint16_be(lua_State *L) {
   LuaIO_buffer_read_uint(uint16_be, uint16_t, sizeof(uint16_t), be16toh);
 }
 
-static int LuaIO_buffer_read_uint32_le(lua_State* L) {
+static int LuaIO_buffer_read_uint32_le(lua_State *L) {
   LuaIO_buffer_read_uint(uint32_le, uint32_t, sizeof(uint32_t), le32toh);
 }
 
-static int LuaIO_buffer_read_uint32_be(lua_State* L) {
+static int LuaIO_buffer_read_uint32_be(lua_State *L) {
   LuaIO_buffer_read_uint(uint32_be, uint32_t, sizeof(uint32_t), be32toh);
 }
 
-static int LuaIO_buffer_read_uint64_le(lua_State* L) {
+static int LuaIO_buffer_read_uint64_le(lua_State *L) {
   LuaIO_buffer_read_uint(uint64_le, uint64_t, sizeof(uint64_t), le64toh);
 }
 
-static int LuaIO_buffer_read_uint64_be(lua_State* L) {
+static int LuaIO_buffer_read_uint64_be(lua_State *L) {
   LuaIO_buffer_read_uint(uint64_be, uint64_t, sizeof(uint64_t), be64toh);
 }
 
@@ -291,8 +291,8 @@ static int LuaIO_buffer_read_uint64_be(lua_State* L) {
   LuaIO_buffer_check_read_buffer(L, read_##name()); \
   LuaIO_buffer_check_memory(L, read_##name()); \
   \
-  char* start; \
-  char* read_pos = buffer->read_pos; \
+  char *start; \
+  char *read_pos = buffer->read_pos; \
   int rest_size = buffer->write_pos - read_pos; \
   assert(rest_size >= 0); \
   \
@@ -319,27 +319,27 @@ static int LuaIO_buffer_read_uint64_be(lua_State* L) {
   return 2; \
 } while (0)
 
-static int LuaIO_buffer_read_int16_le(lua_State* L) {
+static int LuaIO_buffer_read_int16_le(lua_State *L) {
   LuaIO_buffer_read_uint(int16_le, int16_t, sizeof(int16_t), le16toh);
 }
 
-static int LuaIO_buffer_read_int16_be(lua_State* L) {
+static int LuaIO_buffer_read_int16_be(lua_State *L) {
   LuaIO_buffer_read_uint(int16_be, int16_t, sizeof(int16_t), be16toh);
 }
 
-static int LuaIO_buffer_read_int32_le(lua_State* L) {
+static int LuaIO_buffer_read_int32_le(lua_State *L) {
   LuaIO_buffer_read_uint(int32_le, int32_t, sizeof(int32_t), le32toh);
 }
 
-static int LuaIO_buffer_read_int32_be(lua_State* L) {
+static int LuaIO_buffer_read_int32_be(lua_State *L) {
   LuaIO_buffer_read_uint(int32_be, int32_t, sizeof(int32_t), be32toh);
 }
 
-static int LuaIO_buffer_read_int64_le(lua_State* L) {
+static int LuaIO_buffer_read_int64_le(lua_State *L) {
   LuaIO_buffer_read_uint(int64_le, int64_t, sizeof(int64_t), le64toh);
 }
 
-static int LuaIO_buffer_read_int64_be(lua_State* L) {
+static int LuaIO_buffer_read_int64_be(lua_State *L) {
   LuaIO_buffer_read_uint(int64_be, int64_t, sizeof(int64_t), be64toh);
 }
 
@@ -347,15 +347,15 @@ static int LuaIO_buffer_read_int64_be(lua_State* L) {
   LuaIO_buffer_check_read_buffer(L, read_##name()); \
   LuaIO_buffer_check_memory(L, read_##name()); \
   \
-  char* start; \
-  char* read_pos = buffer->read_pos; \
+  char *start; \
+  char *read_pos = buffer->read_pos; \
   int rest_size = buffer->write_pos - read_pos; \
   assert(rest_size >= 0); \
   \
   if (bytes <= (size_t)rest_size) { \
-    temp_type* temp = (temp_type*)read_pos; \
+    temp_type *temp = (temp_type*)read_pos; \
     temp_type tmp = endian(*temp); \
-    type* t = (type*)&tmp; \
+    type *t = (type*)&tmp; \
     lua_pushnumber(L, *t); \
     lua_pushinteger(L, bytes); \
     \
@@ -375,19 +375,19 @@ static int LuaIO_buffer_read_int64_be(lua_State* L) {
   return 2; \
 } while (0)
 
-static int LuaIO_buffer_read_float_le(lua_State* L) {
+static int LuaIO_buffer_read_float_le(lua_State *L) {
   LuaIO_buffer_read_float(float_le, float, sizeof(float), le32toh, uint32_t);
 }
 
-static int LuaIO_buffer_read_float_be(lua_State* L) {
+static int LuaIO_buffer_read_float_be(lua_State *L) {
   LuaIO_buffer_read_float(float_be, float, sizeof(float), be32toh, uint32_t);
 }
 
-static int LuaIO_buffer_read_double_le(lua_State* L) {
+static int LuaIO_buffer_read_double_le(lua_State *L) {
   LuaIO_buffer_read_float(double_le, double, sizeof(double), le64toh, uint64_t);
 }
 
-static int LuaIO_buffer_read_double_be(lua_State* L) {
+static int LuaIO_buffer_read_double_be(lua_State *L) {
   LuaIO_buffer_read_float(double_be, double, sizeof(double), be64toh, uint64_t);
 }
 
@@ -429,7 +429,7 @@ int luaopen_read_buffer(lua_State *L) {
   luaL_Reg lib[] = {
     { "new", LuaIO_read_buffer_new },
     { "__newindex", LuaIO_cannot_change },
-    { NULL, NULL}
+    { NULL, NULL }
   };
 
   lua_createtable(L, 0, 0);

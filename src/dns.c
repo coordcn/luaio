@@ -4,6 +4,7 @@
 
 #include "init.h"
 #include "LuaIO.h"
+#include "ares.h"
 
 static ares_channel LuaIO_ares_channel;
 static uv_timer_t LuaIO_ares_timer;
@@ -16,12 +17,12 @@ typedef struct {
   uv_poll_t poll_watcher;
 } LuaIO_ares_task_t;
 
-static void LuaIO_ares_timeout(uv_timer_t* handle) {
+static void LuaIO_ares_timeout(uv_timer_t *handle) {
   ares_process_fd(LuaIO_ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
-static void LuaIO_ares_poll_callback(uv_poll_t* watcher, int status, int events) {
-  LuaIO_ares_task_t* task = container_of(watcher, LuaIO_ares_task_t, poll_watcher);
+static void LuaIO_ares_poll_callback(uv_poll_t *watcher, int status, int events) {
+  LuaIO_ares_task_t *task = container_of(watcher, LuaIO_ares_task_t, poll_watcher);
 
   /* Reset the idle timer */
   uv_timer_again(&LuaIO_ares_timer);
@@ -38,8 +39,8 @@ static void LuaIO_ares_poll_callback(uv_poll_t* watcher, int status, int events)
                   events & UV_WRITABLE ? task->sock : ARES_SOCKET_BAD);
 }
 
-static void LuaIO_ares_poll_close_callback(uv_handle_t* watcher) {
-  LuaIO_ares_task_t* task = container_of(watcher, LuaIO_ares_task_t, poll_watcher);
+static void LuaIO_ares_poll_close_callback(uv_handle_t *watcher) {
+  LuaIO_ares_task_t *task = container_of(watcher, LuaIO_ares_task_t, poll_watcher);
   LuaIO_hash_int_remove(LuaIO_ares_tasks, task->sock);
 
   if (!LuaIO_ares_tasks->items) {
@@ -47,8 +48,8 @@ static void LuaIO_ares_poll_close_callback(uv_handle_t* watcher) {
   }
 }
 
-static LuaIO_ares_task_t* LuaIO_ares_task_create(uv_loop_t* loop, ares_socket_t sock) {
-  LuaIO_ares_task_t* task = (LuaIO_ares_task_t*) LuaIO_palloc(&LuaIO_ares_task_pool,  
+static LuaIO_ares_task_t *LuaIO_ares_task_create(uv_loop_t *loop, ares_socket_t sock) {
+  LuaIO_ares_task_t *task = (LuaIO_ares_task_t*) LuaIO_palloc(&LuaIO_ares_task_pool,  
                                                               sizeof(LuaIO_ares_task_t));
 
   if (!task) {
@@ -68,11 +69,11 @@ static LuaIO_ares_task_t* LuaIO_ares_task_create(uv_loop_t* loop, ares_socket_t 
   return task;
 }
 
-static void LuaIO_ares_sockstate_callback(void* data,
+static void LuaIO_ares_sockstate_callback(void *data,
                                           ares_socket_t sock,
                                           int read,
                                           int write) {
-  LuaIO_ares_task_t* task;
+  LuaIO_ares_task_t *task;
 
   task = (LuaIO_ares_task_t*)LuaIO_hash_int_get(LuaIO_ares_tasks, sock);
 
@@ -111,8 +112,8 @@ static void LuaIO_ares_free_task(void *p) {
   LuaIO_pfree(&LuaIO_ares_task_pool, p);
 }
 
-void LuaIO_dns_init(lua_State* L) {
-  uv_loop_t* loop = uv_default_loop();
+void LuaIO_dns_init(lua_State *L) {
+  uv_loop_t *loop = uv_default_loop();
   int ret = ares_library_init(ARES_LIB_INIT_ALL);
   if (ret != ARES_SUCCESS) {
     luaL_error(L, "ares_library_init() error: %s\n", ares_strerror(ret));
@@ -140,7 +141,7 @@ void LuaIO_dns_init(lua_State* L) {
                                                    LuaIO_ares_free_task);
 }
 
-static void LuaIO_dns_host2addrs(lua_State* L, struct hostent* host) {
+static void LuaIO_dns_host2addrs(lua_State *L, struct hostent *host) {
   char ip[INET6_ADDRSTRLEN];
 
   lua_newtable(L);
@@ -151,12 +152,12 @@ static void LuaIO_dns_host2addrs(lua_State* L, struct hostent* host) {
   }
 }
 
-static void LuaIO_dns_queryA_callback(void* arg, 
+static void LuaIO_dns_queryA_callback(void *arg, 
                                       int status, 
                                       int timeouts, 
-                                      unsigned char* buf,
+                                      unsigned char *buf,
                                       int len) {
-  lua_State* L = arg;
+  lua_State *L = arg;
 
   if (status != ARES_SUCCESS) {
     lua_pushnil(L);
@@ -165,7 +166,7 @@ static void LuaIO_dns_queryA_callback(void* arg,
     return;
   }
 
-  struct hostent* host;
+  struct hostent *host;
   int rc = ares_parse_a_reply(buf, len, &host, NULL, NULL);
   if (rc != ARES_SUCCESS) {
     lua_pushnil(L);
@@ -180,8 +181,8 @@ static void LuaIO_dns_queryA_callback(void* arg,
   LuaIO_resume(L, 2);
 }
 
-static int LuaIO_dns_queryA(lua_State* L) {
-  const char* name = luaL_checkstring(L, 1);
+static int LuaIO_dns_queryA(lua_State *L) {
+  const char *name = luaL_checkstring(L, 1);
 
   ares_query(LuaIO_ares_channel,
              name,
@@ -193,12 +194,12 @@ static int LuaIO_dns_queryA(lua_State* L) {
   return lua_yield(L, 0);
 }
 
-static void LuaIO_dns_queryAaaa_callback(void* arg, 
+static void LuaIO_dns_queryAaaa_callback(void *arg, 
                                          int status, 
                                          int timeouts, 
-                                         unsigned char* buf,
+                                         unsigned char *buf,
                                          int len) {
-  lua_State* L = arg;
+  lua_State *L = arg;
 
   if (status != ARES_SUCCESS) {
     lua_pushnil(L);
@@ -207,7 +208,7 @@ static void LuaIO_dns_queryAaaa_callback(void* arg,
     return;
   }
 
-  struct hostent* host;
+  struct hostent *host;
   int rc = ares_parse_aaaa_reply(buf, len, &host, NULL, NULL);
   if (rc != ARES_SUCCESS) {
     lua_pushnil(L);
@@ -222,8 +223,8 @@ static void LuaIO_dns_queryAaaa_callback(void* arg,
   LuaIO_resume(L, 2);
 }
 
-static int LuaIO_dns_queryAaaa(lua_State* L) {
-  const char* name = luaL_checkstring(L, 1);
+static int LuaIO_dns_queryAaaa(lua_State *L) {
+  const char *name = luaL_checkstring(L, 1);
 
   ares_query(LuaIO_ares_channel,
              name,
@@ -240,7 +241,7 @@ int luaopen_dns(lua_State *L){
     { "resolve4", LuaIO_dns_queryA },
     { "resolve6", LuaIO_dns_queryAaaa },
     { "__newindex", LuaIO_cannot_change},
-    { NULL, NULL}
+    { NULL, NULL }
   };
 
   lua_createtable(L, 0, 0);

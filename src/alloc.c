@@ -6,8 +6,8 @@
 
 #include "alloc.h"
 
-void* LuaIO_malloc(size_t size) {
-  void* p = malloc(size);
+void *LuaIO_malloc(size_t size) {
+  void *p = malloc(size);
   if (p == NULL) {
     fprintf(stderr, "malloc(size: %" PRId64 ") failed.\n", size);
   }
@@ -15,8 +15,8 @@ void* LuaIO_malloc(size_t size) {
   return p;
 }
 
-void* LuaIO_calloc(size_t size) {
-  void* p = LuaIO_malloc(size);
+void *LuaIO_calloc(size_t size) {
+  void *p = LuaIO_malloc(size);
   if (p) {
     LuaIO_memzero(p, size);
   }
@@ -24,8 +24,8 @@ void* LuaIO_calloc(size_t size) {
   return p;
 }
 
-void* LuaIO_realloc(void* p, size_t size) {
-  void* new = realloc(p, size);
+void *LuaIO_realloc(void *p, size_t size) {
+  void *new = realloc(p, size);
   if (new == NULL) {
     fprintf(stderr, "realloc(pointer: %p, size: %" PRId64 ") failed.\n", p, size);
   }
@@ -35,8 +35,8 @@ void* LuaIO_realloc(void* p, size_t size) {
 
 #if (HAVE_POSIX_MEMALIGN)
 
-void* LuaIO_memalign(size_t align, size_t size) {
-  void* p;
+void *LuaIO_memalign(size_t align, size_t size) {
+  void *p;
 
   int err = posix_memalign(&p, align, size);
   if (err) {
@@ -49,8 +49,8 @@ void* LuaIO_memalign(size_t align, size_t size) {
 
 #elif (HAVE_MEMALIGN)
 
-void* LuaIO_memalign(size_t align, size_t size) {
-  void* p = memalign(align, size);
+void *LuaIO_memalign(size_t align, size_t size) {
+  void *p = memalign(align, size);
   if (p == NULL) {
     fprintf(stderr, "memalign(align: %" PRId64 ", size: %" PRId64 ") failed.\n", align, size);
   }
