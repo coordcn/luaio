@@ -16,11 +16,9 @@ local double = 4.0
 local str1 = '中华人民共和国万岁！'
 local str2 = '世界人民大团结万岁！'
 
-local test = {}
-
-function test.main()
-  local write_buffer, err = WriteBuffer.new(512)
-  assert(err == 0, color.red('test_fs_stream [WriteBuffer.new(size)] error: ' .. ERRNO.parse(err)))
+function main()
+  local write_buffer = WriteBuffer.new(512)
+  assert(write_buffer, color.red('test_fs_stream [WriteBuffer.new(size)] error'))
   assert(write_buffer:capacity() == 512, color.red('test_fs_stream [WriteBuffer:capacity()] error'))
 
   local ret = write_buffer:write(str1 .. str2)
@@ -73,9 +71,8 @@ function test.main()
   local write_stream = fs.createWriteStream('./test.txt')
 
   ret = write_stream:write(write_buffer)
-  print(ret)
 
   print(color.green('test_fs_stream ok'))
 end
 
-return test
+return main

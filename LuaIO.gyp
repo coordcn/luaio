@@ -49,6 +49,7 @@
         'src/write_buffer.c',
         'src/dns.c',
         'src/tcp.c',
+        'src/http.c',
         'src/fs.c',
       ],
     },

@@ -15,7 +15,7 @@ static char LuaIO_write_buffer_metatable_key;
   }
 
 /* local write_buffer = require('write_buffer')
- * local buffer, err = write_buffer.new(size)
+ * local buffer = write_buffer.new(size)
  */
 static int LuaIO_write_buffer_new(lua_State *L) {
   lua_Integer size = luaL_checkinteger(L, 1);
@@ -26,8 +26,7 @@ static int LuaIO_write_buffer_new(lua_State *L) {
   LuaIO_buffer_t *buffer = lua_newuserdata(L, sizeof(LuaIO_buffer_t));
   if (buffer == NULL) {
     lua_pushnil(L);
-    lua_pushinteger(L, UV_ENOMEM);
-    return 2;
+    return 1;
   }
 
   size_t capacity;
@@ -35,8 +34,7 @@ static int LuaIO_write_buffer_new(lua_State *L) {
   if (start == NULL) {
     lua_pop(L, 1);
     lua_pushnil(L);
-    lua_pushinteger(L, UV_ENOMEM);
-    return 2;
+    return 1;
   }
 
   buffer->type = LUAIO_TYPE_WRITE_BUFFER;
@@ -44,7 +42,6 @@ static int LuaIO_write_buffer_new(lua_State *L) {
   buffer->capacity = capacity;
   buffer->start = start;
   buffer->read_pos = start;
-  /*buffer->parse_pos = start;*/
   buffer->write_pos = start;
   buffer->end = start + capacity;
 
@@ -52,9 +49,7 @@ static int LuaIO_write_buffer_new(lua_State *L) {
   lua_pushlightuserdata(L, &LuaIO_write_buffer_metatable_key);
   lua_rawget(L, LUA_REGISTRYINDEX);
   lua_setmetatable(L, -2);
-
-  lua_pushinteger(L, 0);
-  return 2;
+  return 1;
 }
 
 /* local err = buffer:write(str) write string */

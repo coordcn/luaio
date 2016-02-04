@@ -15,7 +15,7 @@ local Socket = Readable:extend()
 function Socket:init(size)
   local buffer_size = size or 16384
   local err = Readable.init(self, buffer_size)
-  if err ~= 0 then return err end
+  if err < 0 then return err end
 
   self.errno = 0
   self.write_bytes = 0
@@ -54,35 +54,35 @@ function Socket:connect(port, host)
     error('socket has been connected, can not connect in this socket')
   end
 
-  local handle, err = tcp_native.new()
-  if err ~= 0 then return err end
+  local handle = tcp_native.new()
+  if not handle then return ERRNO.UV_ENOMEM end
 
   local family = tcp_native.is_ip(host)
   if family then
     err = handle:connect(port, host)
-    if err ~= 0 then
+    if err < 0 then
       handle:close()
       return err
     end
   else
     local ip4
     ip4, err = dns.resolve4(host)
-    if err ~= 0 then
+    if err < 0 then
       local ip6
       ip6, err = dns.resolve6(host)
-      if err ~= 0 then
+      if err < 0 then
         handle:close()
         return err
       else
         err = handle:connect(port, ip6[1])
-        if err ~= 0 then
+        if err < 0 then
           handle:close()
           return err
         end
       end
     else
       err = handle:connect(port, ip4[1])
-      if err ~= 0 then
+      if err < 0 then
         handle:close()
         return err
       end
@@ -104,7 +104,6 @@ function Socket:_read()
 
   local err =  self.handle:read()
   self.errno = err
-
   return err
 end
 
@@ -333,18 +332,18 @@ function Server:init(port, onconnect, options)
   local handle_ = nil
   local err = 0
 
-  local handle_, err = tcp_native.new()
-  if err ~= 0 then return err end
+  local handle_ = tcp_native.new()
+  if not handle_ then return ERRNO.UV_ENOMEM end
 
   if not options.host then
     err = handle_:bind(port, '::', options.reuseport)
-    if err ~= 0 then
+    if err < 0 then
       handle_:close()
-      handle, err = tcp_native.new()
-      if err ~= 0 then return err end
+      handle = tcp_native.new()
+      if not handle then return ERRNO.UV_ENOMEM end
 
       err = handle:bind(port, '0.0.0.0', options.reuseport)
-      if err ~= 0 then
+      if err < 0 then
         handle:close()
         return err
       end
@@ -353,7 +352,7 @@ function Server:init(port, onconnect, options)
     end
   else
     err = handle_:bind(port, options.host, options.reuseport)
-    if err ~= 0 then
+    if err < 0 then
       handle_:close()
       return err
     end
@@ -368,19 +367,20 @@ function Server:init(port, onconnect, options)
     end
 
     local socket, err = Socket:new(self.bufferSize)
+    if not socket then return end
+
     socket:_set_handle(client_handle, self)
     socket:setTimeout(self.timeout)
     socket:setNodelay(self.nodelay)
     socket:setKeepalive(self.keepalive, self.keepidle)
 
     self.connections = self.connections + 1
-
     onconnect(socket)
     socket:close()
   end
 
   err = handle:listen(_onconnect, options.backlog)
-  if err ~= 0 then
+  if err < 0 then
     handle:close()
     return err
   end
@@ -395,7 +395,6 @@ end
 -- @return: err {integer}
 function Server:address()
   if self.closed then error('closed, unavaliable') end
-
   return self.handle:local_address()
 end
 
@@ -419,7 +418,6 @@ end
 -- @example: instance:close()
 function Server:close()
   if self.closed then return end
-
   self.closed = true
   self.handle:close()
 end
@@ -432,10 +430,10 @@ end
 
 tcp.connect = function(port, host, buffer_size)
   local socket, err = Socket:new(buffer_size)
-  if err ~= 0 then return nil, err end
+  if err < 0 then return nil, err end
 
   err = socket:connect(port, host)
-  if err ~= 0 then
+  if err < 0 then
     socket:close()
     return nil, err
   end

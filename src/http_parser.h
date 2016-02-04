@@ -41,10 +41,6 @@ typedef unsigned __int64 uint64_t;
 # define HTTP_PARSER_STRICT 1
 #endif
 
-#ifndef HTTP_MAX_HEADER_LINE_SIZE
-#define HTTP_MAX_HEADER_LINE_SIZE (16*1024)
-#endif
-
 /* Request Methods */
 #define HTTP_METHOD_MAP(XX)         \
   XX(0,  DELETE,      DELETE)       \
@@ -85,70 +81,25 @@ typedef unsigned __int64 uint64_t;
   /* CalDAV */                      \
   XX(30, MKCALENDAR,  MKCALENDAR)   \
 
-enum http_method
-  {
+enum http_method {
 #define XX(num, name, string) HTTP_##name = num,
   HTTP_METHOD_MAP(XX)
 #undef XX
-  };
-
-/* Map for errno-related constants
- * 
- * The provided argument should be a macro that takes 2 arguments.
- */
-#define HTTP_ERRNO_MAP(XX)                                           \
-  /* No error */                                                     \
-  XX(OK, "success")                                                  \
-                                                                     \
-  /* Parsing-related errors */                                       \
-  XX(INVALID_EOF_STATE, "stream ended at an unexpected time")        \
-  XX(HEADER_OVERFLOW,                                                \
-     "too many header bytes seen; overflow detected")                \
-  XX(HEADER_LINE_OVERFLOW,                                                \
-     "too many header line bytes seen; overflow detected")                \
-  XX(CLOSED_CONNECTION,                                              \
-     "data received after completed connection: close message")      \
-  XX(INVALID_VERSION, "invalid HTTP version")                        \
-  XX(INVALID_STATUS, "invalid HTTP status code")                     \
-  XX(INVALID_METHOD, "invalid HTTP method")                          \
-  XX(INVALID_URL, "invalid URL")                                     \
-  XX(INVALID_HOST, "invalid host")                                   \
-  XX(INVALID_PORT, "invalid port")                                   \
-  XX(INVALID_PATH, "invalid path")                                   \
-  XX(INVALID_QUERY_STRING, "invalid query string")                   \
-  XX(INVALID_FRAGMENT, "invalid fragment")                           \
-  XX(LF_EXPECTED, "LF character expected")                           \
-  XX(INVALID_HEADER_TOKEN, "invalid character in header")            \
-  XX(INVALID_CONTENT_LENGTH,                                         \
-     "invalid character in content-length header")                   \
-  XX(INVALID_CHUNK_SIZE,                                             \
-     "invalid character in chunk size header")                       \
-  XX(INVALID_CONSTANT, "invalid constant string")                    \
-  XX(INVALID_INTERNAL_STATE, "encountered unexpected internal state")\
-  XX(STRICT, "strict mode assertion failed")                         \
-  XX(PAUSED, "parser is paused")                                     \
-  XX(UNKNOWN, "an unknown error occurred")
-
-
-/* Define HPE_* values for each errno value above */
-#define HTTP_ERRNO_GEN(n, s) HPE_##n,
-enum http_errno {
-  HTTP_ERRNO_MAP(HTTP_ERRNO_GEN)
 };
-#undef HTTP_ERRNO_GEN
 
-
-/* Get an http_errno value from an http_parser */
-#define HTTP_PARSER_ERRNO(p)            ((enum http_errno) (p)->http_errno)
 
 /*parse completed*/
-#define HTTP_OK         0
+#define HTTP_OK                         0
 /*parsed HTTP_MAX_HEADERS_PER_READ headers*/
-#define HTTP_DONE       -1
-/*parse error*/
-#define HTTP_ERROR      -2
+#define HTTP_DONE                       -1
 /*need more data*/
-#define HTTP_AGAIN      -3
+#define HTTP_AGAIN                      -2
+/*parse error*/
+#define HTTP_ERROR                      -3
+/*parse Bad Request*/
+#define HTTP_BAD_REQUEST                400
+/*parse Request-URI Too Large*/
+#define HTTP_REQUEST_URI_TOO_LARGE      414
 
 typedef struct http_parser http_parser;
 typedef struct http_url http_url;
@@ -160,46 +111,41 @@ typedef struct {
 
 struct http_url {
   http_buf_t schema;
-  /*USERINFO@HOST:PORT*/
-  http_buf_t server;
-  http_buf_t path;
-  http_buf_t query;
-  http_buf_t fragment;
   http_buf_t userinfo;
   http_buf_t host;
   http_buf_t port;
+  http_buf_t path;
+  http_buf_t query;
+  http_buf_t fragment;
+  /*USERINFO@HOST:PORT*/
+  http_buf_t server;
 };
 
-#define HTTP_MAX_HEADERS_PER_READ      32
+#define HTTP_MAX_HEADERS_PER_READ      16
 struct http_parser {
   http_url    url;
   /*headers[0]: field*/
   /*headers[1]: value*/
   http_buf_t  headers[HTTP_MAX_HEADERS_PER_READ * 2];
-  char*       last_pos;
-  size_t      nread;
-  size_t      max_header_line_size;
+  char        *last_pos;
+  uint32_t    nread;
+  uint32_t    max_header_line_size;
   uint16_t    http_major;
   uint16_t    http_minor;
   uint16_t    status_code;
   uint8_t     method;
-  uint8_t     index;
-  uint8_t     http_errno;
   uint8_t     state;
   /*current headers_num * 2*/
   uint8_t     nbuf;
+  uint8_t     index;
   uint8_t     found_at;
 };
 
-void http_parser_init(http_parser *parser, size_t max_header_line_size);
+void http_parser_init(http_parser *parser);
 
 int http_parse_status_line(http_parser *parser, char *data, char *last);
 int http_parse_request_line(http_parser *parser, char *data, char *last);
 int http_parse_headers(http_parser *parser, char *data, char *last);
-
-const char *http_method_str(enum http_method m);
-const char *http_errno_name(enum http_errno err);
-const char *http_errno_description(enum http_errno err);
 
 int http_parse_host(http_url *url, char *data, size_t len, uint8_t found_at);
 int http_parse_url(http_url *url, char *data, size_t len);

@@ -33,6 +33,8 @@ void LuaIO_tcp_write_req_pool_init(size_t max_free_chunks);
 void LuaIO_tcp_shutdown_req_pool_init(size_t max_free_chunks);
 int luaopen_tcp(lua_State* L);
 
+int luaopen_http(lua_State* L);
+
 void LuaIO_fs_req_pool_init(size_t max_free_chunks);
 int luaopen_fs(lua_State* L);
 

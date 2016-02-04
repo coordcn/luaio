@@ -32,26 +32,14 @@
       (1 << ((unsigned int) (i) & 7))))
 #endif
 
-#ifndef ELEM_AT
-# define ELEM_AT(a, i, v) ((unsigned int) (i) < ARRAY_SIZE(a) ? (a)[(i)] : (v))
-#endif
-
-#define SET_ERRNO(e)                                                 \
-  do {                                                                 \
-    parser->http_errno = (e);                                          \
-  } while(0)
-
 #define CURRENT_STATE() p_state
 #define UPDATE_STATE(V) p_state = (enum state) (V);
-#define RETURN(V)                                                    \
+#define RETURN(V)                                                      \
   do {                                                                 \
     parser->state = CURRENT_STATE();                                   \
-    parser->last_pos = p;                                                   \
+    parser->last_pos = p + 1;                                          \
     return (V);                                                        \
   } while (0);
-
-#define REEXECUTE()                                                  \
-  goto reexecute;  
 
 
 #ifdef __GNUC__
@@ -61,26 +49,6 @@
 # define LIKELY(X) (X)
 # define UNLIKELY(X) (X)
 #endif
-
-/* Don't allow the total size of the HTTP headers (including the status
- * line) to exceed HTTP_MAX_HEADER_SIZE.  This check is here to protect
- * embedders against denial-of-service attacks where the attacker feeds
- * us a never-ending header that the embedder keeps buffering.
- *
- * This check is arguably the responsibility of embedders but we're doing
- * it on the embedder's behalf because most won't bother and this way we
- * make the web a little safer.  HTTP_MAX_HEADER_SIZE is still far bigger
- * than any reasonable request or response so this should never affect
- * day-to-day operation.
- */
-#define COUNT_HEADER_SIZE(V)                                         \
-  do {                                                                 \
-    parser->nread += (V);                                              \
-    if (UNLIKELY(parser->nread > parser->max_header_line_size)) {      \
-      SET_ERRNO(HPE_HEADER_OVERFLOW);                                  \
-      RETURN(HTTP_ERROR);                                              \
-    }                                                                  \
-  } while (0)
 
 
 #define PROXY_CONNECTION "proxy-connection"
@@ -291,57 +259,62 @@ enum http_host_state {
 
 
 #if HTTP_PARSER_STRICT
-# define STRICT_CHECK(cond)                                          \
+# define STRICT_CHECK(cond, error)                                     \
   do {                                                                 \
     if (cond) {                                                        \
-      SET_ERRNO(HPE_STRICT);                                           \
-      RETURN(HTTP_ERROR);                                              \
+      RETURN(error);                                                   \
     }                                                                  \
   } while (0)
 #else
-# define STRICT_CHECK(cond)
+# define STRICT_CHECK(cond, error)
 #endif
 
 
-/* Map errno values to strings for human-readable output */
-#define HTTP_STRERROR_GEN(n, s) { "HPE_" #n, s },
-static struct {
-  const char *name;
-  const char *description;
-} http_strerror_tab[] = {
-  HTTP_ERRNO_MAP(HTTP_STRERROR_GEN)
-};
-#undef HTTP_STRERROR_GEN
+void http_parser_init(http_parser *parser) {
+  parser->url.schema.base = NULL;
+  parser->url.schema.len = 0;
+  parser->url.userinfo.base = NULL;
+  parser->url.userinfo.len = 0;
+  parser->url.host.base = NULL;
+  parser->url.host.len = 0;
+  parser->url.port.base = NULL;
+  parser->url.port.len = 0;
+  parser->url.path.base = NULL;
+  parser->url.path.len = 0;
+  parser->url.query.base = NULL;
+  parser->url.query.len = 0;
+  parser->url.fragment.base = NULL;
+  parser->url.fragment.len = 0;
+  parser->url.server.base = NULL;
+  parser->url.server.len = 0;
 
-
-void http_parser_init(http_parser *parser, size_t max_header_line_size) {
-  memset(parser, 0, sizeof(*parser));
-  parser->max_header_line_size = max_header_line_size ? max_header_line_size : HTTP_MAX_HEADER_LINE_SIZE;
+  parser->last_pos = NULL;
+  parser->nread = 0;
+  parser->http_major = 0;
+  parser->http_minor = 0;
+  parser->status_code = 0;
+  parser->method = 0;
+  parser->state = 0;
+  parser->nbuf = 0;
+  parser->index = 0;
+  parser->found_at = 0;
 }
 
 int http_parse_status_line(http_parser *parser, char *data, char *last) {
-  char ch, *p;
+  char ch;
+  char *p;
   enum state p_state = (enum state)parser->state;
 
-  if (HTTP_PARSER_ERRNO(parser) != HPE_OK) {
-    return HTTP_ERROR;
-  }
-
   assert(data <= last);
-  if (data == last) return HTTP_AGAIN;
+  p = parser->last_pos ? parser->last_pos : data;
+  assert(p >= data || p <= last);
 
-  if (parser->last_pos) {
-    p = parser->last_pos + 1;
-    assert(p >= data || p <= last);
-  } else {
-    p = data;
-  }
-
-  if (p == last) return HTTP_AGAIN;
- 
   for (; p < last; p++) {
     ch = *p;
-    COUNT_HEADER_SIZE(1);
+    parser->nread += 1;
+    if (UNLIKELY(parser->nread > parser->max_header_line_size)) {
+      RETURN(HTTP_ERROR);
+    }
 
     switch (CURRENT_STATE()) {
       case s_start:
@@ -356,7 +329,6 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
             break;
 
           default:
-            SET_ERRNO(HPE_INVALID_CONSTANT);
             RETURN(HTTP_ERROR);
         }
 
@@ -364,28 +336,27 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
       }
 
       case s_res_H:
-        STRICT_CHECK(ch != 'T');
+        STRICT_CHECK(ch != 'T', HTTP_ERROR);
         UPDATE_STATE(s_res_HT); 
         break;
 
       case s_res_HT:
-        STRICT_CHECK(ch != 'T');
+        STRICT_CHECK(ch != 'T', HTTP_ERROR);
         UPDATE_STATE(s_res_HTT);
         break;
 
       case s_res_HTT:
-        STRICT_CHECK(ch != 'P');
+        STRICT_CHECK(ch != 'P', HTTP_ERROR);
         UPDATE_STATE(s_res_HTTP);
         break;
 
       case s_res_HTTP:
-        STRICT_CHECK(ch != '/');
+        STRICT_CHECK(ch != '/', HTTP_ERROR);
         UPDATE_STATE(s_res_first_http_major);
         break;
 
       case s_res_first_http_major:
         if (UNLIKELY(ch < '0' || ch > '9')) {
-          SET_ERRNO(HPE_INVALID_VERSION);
           RETURN(HTTP_ERROR);
         }
 
@@ -402,7 +373,6 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
         }
 
         if (!IS_NUM(ch)) {
-          SET_ERRNO(HPE_INVALID_VERSION);
           RETURN(HTTP_ERROR);
         }
 
@@ -410,7 +380,6 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
         parser->http_major += ch - '0';
 
         if (UNLIKELY(parser->http_major > 999)) {
-          SET_ERRNO(HPE_INVALID_VERSION);
           RETURN(HTTP_ERROR);
         }
 
@@ -420,7 +389,6 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
       /* first digit of minor HTTP version */
       case s_res_first_http_minor:
         if (UNLIKELY(!IS_NUM(ch))) {
-          SET_ERRNO(HPE_INVALID_VERSION);
           RETURN(HTTP_ERROR);
         }
 
@@ -437,7 +405,6 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
         }
 
         if (UNLIKELY(!IS_NUM(ch))) {
-          SET_ERRNO(HPE_INVALID_VERSION);
           RETURN(HTTP_ERROR);
         }
 
@@ -445,7 +412,6 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
         parser->http_minor += ch - '0';
 
         if (UNLIKELY(parser->http_minor > 999)) {
-          SET_ERRNO(HPE_INVALID_VERSION);
           RETURN(HTTP_ERROR);
         }
 
@@ -455,13 +421,10 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
       case s_res_first_status_code:
       {
         if (!IS_NUM(ch)) {
-          if (ch == ' ') {
-            break;
-          }
-
-          SET_ERRNO(HPE_INVALID_STATUS);
+          if (ch == ' ') break;
           RETURN(HTTP_ERROR);
         }
+
         parser->status_code = ch - '0';
         UPDATE_STATE(s_res_status_code);
         break;
@@ -479,9 +442,9 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
               break;
             case LF:
               parser->nread = 0;
+              UPDATE_STATE(s_start);
               RETURN(HTTP_OK);
             default:
-              SET_ERRNO(HPE_INVALID_STATUS);
               RETURN(HTTP_ERROR);
           }
           break;
@@ -489,9 +452,7 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
 
         parser->status_code *= 10;
         parser->status_code += ch - '0';
-
         if (UNLIKELY(parser->status_code > 999)) {
-          SET_ERRNO(HPE_INVALID_STATUS);
           RETURN(HTTP_ERROR);
         }
 
@@ -507,6 +468,7 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
 
         if (ch == LF) {
           parser->nread = 0;
+          UPDATE_STATE(s_start);
           RETURN(HTTP_OK);
         }
 
@@ -522,50 +484,44 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
 
         if (ch == LF) {
           parser->nread = 0;
+          UPDATE_STATE(s_start);
           RETURN(HTTP_OK);
         }
 
         break;
 
       case s_res_line_almost_done:
-        STRICT_CHECK(ch != LF);
+        STRICT_CHECK(ch != LF, HTTP_ERROR);
         parser->nread = 0;
+        UPDATE_STATE(s_start);
         RETURN(HTTP_OK);
 
       default:
         assert(0 && "unhandled state");
-        SET_ERRNO(HPE_INVALID_INTERNAL_STATE);
         RETURN(HTTP_ERROR);
     }
   }
 
-  RETURN(HTTP_AGAIN);
+  parser->state = CURRENT_STATE();
+  parser->last_pos = p;
+  return HTTP_AGAIN;
 }
 
 int http_parse_request_line(http_parser *parser, char *data, char *last) {
-  char ch, *p;
+  char ch;
+  char *p;
   enum state p_state = (enum state)parser->state;
 
-  /* We're in an error state. Don't bother doing anything. */
-  if (HTTP_PARSER_ERRNO(parser) != HPE_OK) {
-    return HTTP_ERROR;
-  }
-
   assert(data <= last);
-  if (data == last) return HTTP_AGAIN;
-
-  if (parser->last_pos) {
-    p = parser->last_pos + 1;
-    assert(p >= data || p <= last);
-  } else {
-    p = data;
-  }
-
-  if (p == last) return HTTP_AGAIN;
+  p = parser->last_pos ? parser->last_pos : data;
+  assert(p >= data || p <= last);
 
   for (; p < last; p++) {
     ch = *p;
-    COUNT_HEADER_SIZE(1);
+    parser->nread += 1;
+    if (UNLIKELY(parser->nread > parser->max_header_line_size)) {
+      RETURN(HTTP_REQUEST_URI_TOO_LARGE);
+    }
 
     switch (CURRENT_STATE()) {
       case s_start:
@@ -574,8 +530,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           break;
 
         if (UNLIKELY(!IS_ALPHA(ch))) {
-          SET_ERRNO(HPE_INVALID_METHOD);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         parser->method = (enum http_method) 0;
@@ -595,8 +550,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           case 'T': parser->method = HTTP_TRACE; break;
           case 'U': parser->method = HTTP_UNLOCK; /* or UNSUBSCRIBE */ break;
           default:
-                    SET_ERRNO(HPE_INVALID_METHOD);
-                    RETURN(HTTP_ERROR);
+                    RETURN(HTTP_BAD_REQUEST);
         }
         UPDATE_STATE(s_req_method);
 
@@ -607,8 +561,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
       {
         const char *matcher;
         if (UNLIKELY(ch == '\0')) {
-          SET_ERRNO(HPE_INVALID_METHOD);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         matcher = method_strings[parser->method];
@@ -623,8 +576,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           } else if (parser->index == 2  && ch == 'P') {
             parser->method = HTTP_COPY;
           } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
           }
         } else if (parser->method == HTTP_MKCOL) {
           if (parser->index == 1 && ch == 'O') {
@@ -638,15 +590,13 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           } else if (parser->index == 3 && ch == 'A') {
             parser->method = HTTP_MKCALENDAR;
           } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
           }
         } else if (parser->method == HTTP_SUBSCRIBE) {
           if (parser->index == 1 && ch == 'E') {
             parser->method = HTTP_SEARCH;
           } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
           }
         } else if (parser->index == 1 && parser->method == HTTP_POST) {
           if (ch == 'R') {
@@ -656,33 +606,28 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           } else if (ch == 'A') {
             parser->method = HTTP_PATCH;
           } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
           }
         } else if (parser->index == 2) {
           if (parser->method == HTTP_PUT) {
             if (ch == 'R') {
               parser->method = HTTP_PURGE;
             } else {
-              SET_ERRNO(HPE_INVALID_METHOD);
-              RETURN(HTTP_ERROR);
+              RETURN(HTTP_BAD_REQUEST);
             }
           } else if (parser->method == HTTP_UNLOCK) {
             if (ch == 'S') {
               parser->method = HTTP_UNSUBSCRIBE;
             } else {
-              SET_ERRNO(HPE_INVALID_METHOD);
-              RETURN(HTTP_ERROR);
+              RETURN(HTTP_BAD_REQUEST);
             }
           } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
           }
         } else if (parser->index == 4 && parser->method == HTTP_PROPFIND && ch == 'P') {
           parser->method = HTTP_PROPPATCH;
         } else {
-          SET_ERRNO(HPE_INVALID_METHOD);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         ++parser->index;
@@ -710,8 +655,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           break;
         }
 
-        SET_ERRNO(HPE_INVALID_URL);
-        RETURN(HTTP_ERROR);
+        RETURN(HTTP_BAD_REQUEST);
       }
 
       case s_req_schema:
@@ -724,8 +668,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           break;
         }
 
-        SET_ERRNO(HPE_INVALID_URL);
-        RETURN(HTTP_ERROR);
+        RETURN(HTTP_BAD_REQUEST);
       }
 
       case s_req_schema_slash:
@@ -735,8 +678,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           break;
         }
 
-        SET_ERRNO(HPE_INVALID_URL);
-        RETURN(HTTP_ERROR);
+        RETURN(HTTP_BAD_REQUEST);
       }
 
       case s_req_schema_slash_slash:
@@ -746,8 +688,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           break;
         }
 
-        SET_ERRNO(HPE_INVALID_URL);
-        RETURN(HTTP_ERROR);
+        RETURN(HTTP_BAD_REQUEST);
       }
 
       case s_req_server_start:
@@ -783,10 +724,10 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
             parser->http_major = 0;
             parser->http_minor = 9;
             parser->nread = 0;
+            UPDATE_STATE(s_start);
             RETURN(HTTP_OK);
           default:
-            SET_ERRNO(HPE_INVALID_URL);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
         }
         break;
       }
@@ -809,8 +750,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
             break;
           case '@':
             if (parser->found_at) {
-              SET_ERRNO(HPE_INVALID_URL);
-              RETURN(HTTP_ERROR);
+              RETURN(HTTP_BAD_REQUEST);
             }
             parser->found_at = 1;
             break;
@@ -829,10 +769,10 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
             parser->http_major = 0;
             parser->http_minor = 9;
             parser->nread = 0;
+            UPDATE_STATE(s_start);
             RETURN(HTTP_OK);
           default:
-            SET_ERRNO(HPE_INVALID_URL);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
         }
         break;
       }
@@ -865,10 +805,10 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
             parser->http_major = 0;
             parser->http_minor = 9;
             parser->nread = 0;
+            UPDATE_STATE(s_start);
             RETURN(HTTP_OK);
           default:
-            SET_ERRNO(HPE_INVALID_URL);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
         }
         break;
       }
@@ -897,10 +837,10 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
             parser->http_major = 0;
             parser->http_minor = 9;
             parser->nread = 0;
+            UPDATE_STATE(s_start);
             RETURN(HTTP_OK);
           default:
-            SET_ERRNO(HPE_INVALID_URL);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
         }
         break;
       }
@@ -931,10 +871,10 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
             parser->http_major = 0;
             parser->http_minor = 9;
             parser->nread = 0;
+            UPDATE_STATE(s_start);
             RETURN(HTTP_OK);
           default:
-            SET_ERRNO(HPE_INVALID_URL);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
         }
         break;
       }
@@ -962,10 +902,10 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
             parser->http_major = 0;
             parser->http_minor = 9;
             parser->nread = 0;
+            UPDATE_STATE(s_start);
             RETURN(HTTP_OK);
           default:
-            SET_ERRNO(HPE_INVALID_URL);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
         }
         break;
       }
@@ -992,10 +932,10 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
             parser->http_major = 0;
             parser->http_minor = 9;
             parser->nread = 0;
+            UPDATE_STATE(s_start);
             RETURN(HTTP_OK);
           default:
-            SET_ERRNO(HPE_INVALID_URL);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
         }
         break;
       }
@@ -1008,36 +948,34 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           case ' ':
             break;
           default:
-            SET_ERRNO(HPE_INVALID_CONSTANT);
-            RETURN(HTTP_ERROR);
+            RETURN(HTTP_BAD_REQUEST);
         }
         break;
 
       case s_req_http_H:
-        STRICT_CHECK(ch != 'T');
+        STRICT_CHECK(ch != 'T', HTTP_BAD_REQUEST);
         UPDATE_STATE(s_req_http_HT);
         break;
 
       case s_req_http_HT:
-        STRICT_CHECK(ch != 'T');
+        STRICT_CHECK(ch != 'T', HTTP_BAD_REQUEST);
         UPDATE_STATE(s_req_http_HTT);
         break;
 
       case s_req_http_HTT:
-        STRICT_CHECK(ch != 'P');
+        STRICT_CHECK(ch != 'P', HTTP_BAD_REQUEST);
         UPDATE_STATE(s_req_http_HTTP);
         break;
 
       case s_req_http_HTTP:
-        STRICT_CHECK(ch != '/');
+        STRICT_CHECK(ch != '/', HTTP_BAD_REQUEST);
         UPDATE_STATE(s_req_first_http_major);
         break;
 
       /* first digit of major HTTP version */
       case s_req_first_http_major:
         if (UNLIKELY(ch < '1' || ch > '9')) {
-          SET_ERRNO(HPE_INVALID_VERSION);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         parser->http_major = ch - '0';
@@ -1053,16 +991,13 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
         }
 
         if (UNLIKELY(!IS_NUM(ch))) {
-          SET_ERRNO(HPE_INVALID_VERSION);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         parser->http_major *= 10;
         parser->http_major += ch - '0';
-
         if (UNLIKELY(parser->http_major > 999)) {
-          SET_ERRNO(HPE_INVALID_VERSION);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         break;
@@ -1071,8 +1006,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
       /* first digit of minor HTTP version */
       case s_req_first_http_minor:
         if (UNLIKELY(!IS_NUM(ch))) {
-          SET_ERRNO(HPE_INVALID_VERSION);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         parser->http_minor = ch - '0';
@@ -1089,22 +1023,20 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
 
         if (ch == LF) {
           parser->nread = 0;
+          UPDATE_STATE(s_start);
           RETURN(HTTP_OK);
         }
 
         /* XXX allow spaces after digit? */
 
         if (UNLIKELY(!IS_NUM(ch))) {
-          SET_ERRNO(HPE_INVALID_VERSION);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         parser->http_minor *= 10;
         parser->http_minor += ch - '0';
-
         if (UNLIKELY(parser->http_minor > 999)) {
-          SET_ERRNO(HPE_INVALID_VERSION);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         break;
@@ -1114,48 +1046,41 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
       case s_req_line_almost_done:
       {
         if (UNLIKELY(ch != LF)) {
-          SET_ERRNO(HPE_LF_EXPECTED);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         parser->nread = 0;
+        UPDATE_STATE(s_start);
         RETURN(HTTP_OK);
       }
 
       default:
         assert(0 && "unhandled state");
-        SET_ERRNO(HPE_INVALID_INTERNAL_STATE);
-        RETURN(HTTP_ERROR);
+        RETURN(HTTP_BAD_REQUEST);
     }
   }
 
-  RETURN(HTTP_AGAIN);
+  parser->state = CURRENT_STATE();
+  parser->last_pos = p;
+  return HTTP_AGAIN;
 }
 
 int http_parse_headers(http_parser *parser, char *data, char *last) {
-  char ch, *p;
+  char ch;
+  char *p;
   http_buf_t *buf;
   enum state p_state = (enum state) parser->state;
 
-  if (HTTP_PARSER_ERRNO(parser) != HPE_OK) {
-    return HTTP_ERROR;
-  }
-
   assert(data <= last);
-  if (data == last) return HTTP_AGAIN;
-
-  if (parser->last_pos) {
-    p = parser->last_pos + 1;
-    assert(p >= data || p <= last);
-  } else {
-    p = data;
-  }
-
-  if (p == last) return HTTP_AGAIN;
+  p = parser->last_pos ? parser->last_pos : data;
+  assert(p >= data || p <= last);
 
   for (; p < last; p++) {
     ch = *p;
-    COUNT_HEADER_SIZE(1);
+    parser->nread += 1;
+    if (UNLIKELY(parser->nread > parser->max_header_line_size)) {
+      RETURN(HTTP_BAD_REQUEST);
+    }
 
     switch (CURRENT_STATE()) {
       case s_start:
@@ -1167,12 +1092,12 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
 
         if (ch == LF) {
           parser->nread = 0;
+          UPDATE_STATE(s_start);
           RETURN(HTTP_OK);
         }
 
         if (UNLIKELY(!TOKEN(ch))) {
-          SET_ERRNO(HPE_INVALID_HEADER_TOKEN);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         parser->headers[parser->nbuf].base = p;
@@ -1192,8 +1117,7 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
         }
 
         if (UNLIKELY(!TOKEN(ch))) {
-          SET_ERRNO(HPE_INVALID_HEADER_TOKEN);
-          RETURN(HTTP_ERROR);
+          RETURN(HTTP_BAD_REQUEST);
         }
 
         break;
@@ -1230,18 +1154,20 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
       case s_header_value:
       {
         if (ch == ' ' || ch == '\t') {
-          buf = &(parser->headers[parser->nbuf + 1]);
-          buf->len = p - buf->base;
           UPDATE_STATE(s_header_space_after_value);
           break;
         }
 
         if (ch == CR) {
+          buf = &(parser->headers[parser->nbuf + 1]);
+          buf->len = p - buf->base;
           UPDATE_STATE(s_header_almost_done);
           break;
         }
 
         if (ch == LF) {
+          buf = &(parser->headers[parser->nbuf + 1]);
+          buf->len = p - buf->base;
           parser->nbuf += 2;
           parser->index = 0;
           parser->nread = 0;
@@ -1264,11 +1190,15 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
         }
 
         if (ch == CR) {
+          buf = &(parser->headers[parser->nbuf + 1]);
+          buf->len = p - buf->base;
           UPDATE_STATE(s_header_almost_done);
           break;
         }
 
         if (ch == LF) {
+          buf = &(parser->headers[parser->nbuf + 1]);
+          buf->len = p - buf->base;
           parser->nbuf += 2;
           parser->index = 0;
           parser->nread = 0;
@@ -1287,7 +1217,7 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
 
       case s_header_almost_done:
       {
-        STRICT_CHECK(ch != LF);
+        STRICT_CHECK(ch != LF, HTTP_BAD_REQUEST);
 
         parser->nbuf += 2;
         parser->index = 0;
@@ -1302,36 +1232,25 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
       }
 
       case s_headers_almost_done:
-        STRICT_CHECK(ch != LF);
+        STRICT_CHECK(ch != LF, HTTP_BAD_REQUEST);
         parser->nread = 0;
+        UPDATE_STATE(s_start);
         RETURN(HTTP_OK);
 
       default:
         assert(0 && "unhandled state");
-        SET_ERRNO(HPE_INVALID_INTERNAL_STATE);
-        RETURN(HTTP_ERROR);
+        RETURN(HTTP_BAD_REQUEST);
     }
   }
 
-  RETURN(HTTP_AGAIN);
-}
-
-const char *http_method_str (enum http_method m) {
-  return ELEM_AT(method_strings, m, "<unknown>");
-}
-
-const char *http_errno_name(enum http_errno err) {
-  assert(((size_t) err) < ARRAY_SIZE(http_strerror_tab));
-  return http_strerror_tab[err].name;
-}
-
-const char *http_errno_description(enum http_errno err) {
-  assert(((size_t) err) < ARRAY_SIZE(http_strerror_tab));
-  return http_strerror_tab[err].description;
+  parser->state = CURRENT_STATE();
+  parser->last_pos = p;
+  return HTTP_AGAIN;
 }
 
 int http_parse_host(http_url *url, char *data, size_t len, uint8_t found_at) {
-  char ch, *p;
+  char ch;
+  char *p;
   enum http_host_state s = found_at ? s_http_userinfo_start : s_http_host_start;
 
   char *end = data + len;
@@ -1506,12 +1425,13 @@ int http_parse_host(http_url *url, char *data, size_t len, uint8_t found_at) {
 }
 
 int http_parse_url(http_url *url, char *data, size_t len) {
-  char ch, *p;
+  char ch;
+  char *p;
   uint8_t found_at = 0;
   enum state s = s_start;
   memset(url, 0, sizeof(*url));
 
-  const char *end = data + len;
+  char *end = data + len;
   for (p = data; p < end; p++) {
     ch = *p;
 
@@ -1650,6 +1570,7 @@ int http_parse_url(http_url *url, char *data, size_t len) {
       {
         if (IS_URL_CHAR(ch) || ch == '?') {
           url->query.base = p;
+          ++url->query.len;
           s = s_req_query_string;
           break;
         }
@@ -1681,6 +1602,7 @@ int http_parse_url(http_url *url, char *data, size_t len) {
       {
         if (IS_URL_CHAR(ch) || ch == '?') {
           url->fragment.base = p;
+          ++url->fragment.len;
           s = s_req_fragment;
           break;
         }

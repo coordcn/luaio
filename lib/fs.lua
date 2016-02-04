@@ -77,11 +77,10 @@ function fs.readFile(path, flag, mode)
     return nil, err
   end
 
-  local buffer
-  buffer, err = ReadBuffer.new(stat.size)
-  if err < 0 then
+  local buffer = ReadBuffer.new(stat.size)
+  if not buffer then
     fs_native.close(fd)
-    return nil, err
+    return nil, ERRNO.UV_ENOMEM
   end
   
   local ret = fs_native.read(fd, buffer, -1)
@@ -91,7 +90,7 @@ function fs.readFile(path, flag, mode)
   end
 
   fs_native.close(fd)
-  buffer:read(-1)
+  return buffer:read(-1)
 end
 
 -- @example: local ret = fs.write(fd, data[, offset])
@@ -409,7 +408,6 @@ function ReadStream:init(path, options)
 
   self.read_bytes = 0
   self.offset = options.offset
-
   return 0
 end
 
@@ -493,7 +491,6 @@ function WriteStream:init(path, options)
   self.write_bytes = 0
   self.offset = options.offset
   self.closed = false
-
   return 0
 end
 

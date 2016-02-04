@@ -12,8 +12,7 @@ local co = coroutine.create(function()
     if match then
       local path = "./test_" .. match
       print('testing: ' .. path)
-      local test = require('test_' .. match)
-      test.main()
+      require('test_' .. match)()
     end
   end
 end)

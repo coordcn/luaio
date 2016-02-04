@@ -51,9 +51,17 @@
   lua_pushcfunction(L, fun); \
   lua_setfield(L, -2, name); \
 
-#define LuaIO_setinteger(key, value) \
+#define LuaIO_setinteger(name, value) \
   lua_pushinteger(L, value); \
-  lua_setfield(L, -2, key); \
+  lua_setfield(L, -2, name); \
+
+#define LuaIO_setstring(name, str) \
+  lua_pushstring(L, str); \
+  lua_setfield(L, -2, name); \
+
+#define LuaIO_setlstring(name, str, len) \
+  lua_pushlstring(L, str, len); \
+  lua_setfield(L, -2, name); \
 
 /*init.c*/
 lua_State *LuaIO_get_main_thread();

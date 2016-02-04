@@ -58,13 +58,12 @@ void LuaIO_tcp_shutdown_req_pool_init(size_t max_free_chunks) {
   LuaIO_pool_init(&LuaIO_tcp_shutdown_req_pool, max_free_chunks);
 }
 
-/*local socket, err = tcp.new()*/
+/*local socket = tcp.new()*/
 static int LuaIO_tcp_socket_new(lua_State *L) {
   LuaIO_tcp_socket_t *socket = lua_newuserdata(L, sizeof(LuaIO_tcp_socket_t));
   if (socket == NULL) {
     lua_pushnil(L);
-    lua_pushinteger(L, UV_ENOMEM);
-    return 2;
+    return 1;
   }
 
   uv_loop_t *loop = uv_default_loop();
@@ -83,9 +82,7 @@ static int LuaIO_tcp_socket_new(lua_State *L) {
   lua_pushlightuserdata(L, &LuaIO_tcp_socket_metatable_key);
   lua_rawget(L, LUA_REGISTRYINDEX);
   lua_setmetatable(L, -2);
-
-  lua_pushinteger(L, 0);
-  return 2;
+  return 1;
 }
 
 #define LuaIO_tcp_check_port_and_host(L, name) \

@@ -95,14 +95,14 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
   lua_pushcfunction(L, luaopen_tcp);
   lua_setfield(L, -2, "tcp_native");
   
+  /*http_native*/
+  lua_pushcfunction(L, luaopen_http);
+  lua_setfield(L, -2, "http_native");
+
   /*fs_native*/
   lua_pushcfunction(L, luaopen_fs);
   lua_setfield(L, -2, "fs_native");
   
-  /*http_parser*/
-  /*lua_pushcfunction(L, luaopen_http_parser);*/
-  /*lua_setfield(L, -2, "http_parser");*/
-
   lua_pop(L, 1);
 
   /*argv*/

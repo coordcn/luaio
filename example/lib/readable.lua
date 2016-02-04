@@ -9,8 +9,8 @@ local Readable = Emitter:extend()
 -- @param: size {integer}
 -- @return: err {integer}
 function Readable:init(size)
-  local read_buffer, err = ReadBuffer.new(size)
-  if err ~= 0 then return err end
+  local read_buffer = ReadBuffer.new(size)
+  if not read_buffer then return ERRNO.UV_ENOMEM end
 
   self.read_buffer = read_buffer
   self.read_bytes = 0

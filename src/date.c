@@ -11,6 +11,7 @@
 #define LUA_DATE_UTC_SIZE       sizeof("Tue, 10 Nov 2002 23:50:13 GMT") - 1
 #define LUA_DATE_LOCAL_SIZE     sizeof("2002-11-10 23:50:13") - 1
 #define IS_NUM(c)               ((c) >= '0' && (c) <= '9')
+#define LuaIO_checktime(L, t)	  ((time_t)luaL_checkinteger(L, t))
 
 static char *week[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 static char *months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -311,14 +312,7 @@ static int LuaIO_date_now(lua_State *L) {
  *    }
  */
 static int LuaIO_date_get_utc_date(lua_State *L) {
-  time_t t;
-  if (lua_isnoneornil(L, 1)) {
-    t = time(NULL);
-  } else if (lua_isinteger(L, 1)) {
-    t = (time_t)lua_tointeger(L, 1);
-  } else {
-    return luaL_argerror(L, 1, "date.getUTCDate(time) error: time must be [nil|integer]\n");
-  }
+  time_t t = luaL_opt(L, LuaIO_checktime, 1, time(NULL));
 
   struct tm tmr, *stm;
   stm = gmtime_r(&t, &tmr);
@@ -344,14 +338,7 @@ static int LuaIO_date_get_utc_date(lua_State *L) {
  * @return ret {table} @date.getUTCDate 
  */
 static int LuaIO_date_get_local_date(lua_State *L) {
-  time_t t;
-  if (lua_isnoneornil(L, 1)) {
-    t = time(NULL);
-  } else if (lua_isinteger(L, 1)) {
-    t = (time_t)lua_tointeger(L, 1);
-  } else {
-    return luaL_argerror(L, 1, "date.getLocalDate(time) error: time must be [nil|integer]\n");
-  }
+  time_t t = luaL_opt(L, LuaIO_checktime, 1, time(NULL));
 
   struct tm tmr, *stm;
   stm = localtime_r(&t, &tmr);
@@ -438,14 +425,7 @@ static int LuaIO_date_parse_local_string(lua_State *L) {
  *    Tue, 10 Nov 2002 23:50:13 GMT
  */
 static int LuaIO_date_get_utc_string(lua_State *L) {
-  time_t t;
-  if (lua_isnoneornil(L, 1)) {
-    t = time(NULL);
-  } else if (lua_isinteger(L, 1)) {
-    t = (time_t)lua_tointeger(L, 1);
-  } else {
-    return luaL_argerror(L, 1, "date.getUTCString(time) error: time must be [nil|integer]\n");
-  }
+  time_t t = luaL_opt(L, LuaIO_checktime, 1, time(NULL));
 
   struct tm tmr, *stm;
   stm = gmtime_r(&t, &tmr);
@@ -507,14 +487,7 @@ static int LuaIO_date_get_utc_string(lua_State *L) {
  *    2002-11-10 23:50:13
  */
 static int LuaIO_date_get_local_string(lua_State *L) {
-  time_t t;
-  if (lua_isnoneornil(L, 1)) {
-    t = time(NULL);
-  } else if (lua_isinteger(L, 1)) {
-    t = (time_t)lua_tointeger(L, 1);
-  } else {
-    return luaL_argerror(L, 1, "date.getLocalString(time) error: time must be [nil|integer]\n");
-  }
+  time_t t = luaL_opt(L, LuaIO_checktime, 1, time(NULL));
 
   struct tm tmr, *stm;
   stm = localtime_r(&t, &tmr);
