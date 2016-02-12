@@ -1,9 +1,11 @@
 #### LuaIO
-- [ ] system 
-  - [x] c 
-  - [x] lua 
-  - [] doc 
-  - [] test
+- [ ] system
+| function  | c   | lua | doc | test | feature | improve | bugfix | security|
+| cpuinfo   | [x] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
+| meminfo   | [ ] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
+| loadavg   | [ ] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
+| hrtime    | [ ] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
+| uptime    | [ ] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
 - [ ] process
 
 #### DB
