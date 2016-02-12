@@ -1,12 +1,13 @@
 #### LuaIO
 - [ ] system
 
-| function  | c   | lua | doc | test | feature | improve | bugfix | security|
-| cpuinfo   | [x] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
-| meminfo   | [ ] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
-| loadavg   | [ ] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
-| hrtime    | [ ] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
-| uptime    | [ ] | [ ] | [ ] | [ ]  | [ ]     | [ ]     | [ ]    | [ ]     |
+| function | c     | lua   | doc   | test  | feature | improve | bugfix | security |
+| :---     | :---: | :---: | :---: | :---: | :---:   | :---:   | :---:  | :---:    |
+| cpuinfo  | ok    | ok    | TODO  | TODO  | none    | none    | none none none none   | none     |
+| meminfo   |  |  |  |   |     |      |    |      |
+| loadavg   |  |  |  |   |     |      |     |       |
+| hrtime    |  |  |  |   |     |     |     |      |
+| uptime    | |  |  |   |      |      |    |      |
 
 - [ ] process
 
