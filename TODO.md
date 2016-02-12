@@ -1,5 +1,5 @@
 #### LuaIO
--[] system
+[] system
   -[x] c
   -[x] bind
   -[] doc
