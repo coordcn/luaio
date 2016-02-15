@@ -1066,7 +1066,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
 }
 
 int http_parse_headers(http_parser *parser, char *data, char *last) {
-  char ch;
+  char ch, c;
   char *p;
   http_buf_t *buf;
   enum state p_state = (enum state) parser->state;
@@ -1096,10 +1096,12 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
           RETURN(HTTP_OK);
         }
 
-        if (UNLIKELY(!TOKEN(ch))) {
+        c = TOKEN(ch);
+        if (UNLIKELY(!c)) {
           RETURN(HTTP_BAD_REQUEST);
         }
 
+        *p = c;
         parser->headers[parser->nbuf].base = p;
         ++parser->index;
         UPDATE_STATE(s_header_field);
@@ -1116,10 +1118,12 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
           break;
         }
 
-        if (UNLIKELY(!TOKEN(ch))) {
+        c = TOKEN(ch);
+        if (UNLIKELY(!c)) {
           RETURN(HTTP_BAD_REQUEST);
         }
 
+        *p = c;
         break;
       }
 
