@@ -73,7 +73,7 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
  
   /*process*/
   lua_pushcfunction(L, luaopen_process);
-  lua_setfield(L, -2, "process");
+  lua_setfield(L, -2, "process_native");
   
   /*date*/
   lua_pushcfunction(L, luaopen_date);
