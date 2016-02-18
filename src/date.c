@@ -11,7 +11,6 @@
 #define LUA_DATE_UTC_SIZE       sizeof("Tue, 10 Nov 2002 23:50:13 GMT") - 1
 #define LUA_DATE_LOCAL_SIZE     sizeof("2002-11-10 23:50:13") - 1
 #define IS_NUM(c)               ((c) >= '0' && (c) <= '9')
-#define LuaIO_checktime(L, t)	  ((time_t)luaL_checkinteger(L, t))
 
 static char *week[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 static char *months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -19,6 +18,12 @@ static char *months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
 static int mday[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
 static long int LuaIO_gmtoff;
+
+static time_t LuaIO_checktime (lua_State *L, int arg) {
+  lua_Integer t = luaL_checkinteger(L, arg);
+  luaL_argcheck(L, (time_t)t == t, arg, "time out of bounds");
+  return (time_t)t;
+}
 
 void LuaIO_date_init() {
   time_t t = time(NULL);
