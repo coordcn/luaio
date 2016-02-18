@@ -97,6 +97,7 @@ int luaopen_system(lua_State *L) {
   const char *release;
   const char *endian;
 
+#ifdef __POSIX__
   struct utsname info;
   if (uname(&info) < 0) {
     type = "Unknown";
@@ -105,6 +106,27 @@ int luaopen_system(lua_State *L) {
 
   type = info.sysname;
   release = info.release;
+#else /* windows */
+  type = "Windows"
+
+  OSVERSIONINFOW info;
+  info.dwOSVersionInfoSize = sizeof(info);
+
+  // Don't complain that GetVersionEx is deprecated; there is no alternative.
+  #pragma warning(suppress : 4996)
+  if (GetVersionExW(&info) == 0) {
+    release = "Unknown";
+  } else {
+    char buf[256];
+    snprintf(buf,
+             sizeof(buf),
+             "%d.%d.%d",
+             (int)info.dwMajorVersion,
+             (int)info.dwMinorVersion,
+             (int)info.dwBuildNumber);
+    release = buf;
+  }
+#endif
 
   union {
     uint32_t i;
