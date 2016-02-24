@@ -16,7 +16,7 @@ typedef struct {
 static uv_stdio_container_t LuaIO_process_stdio[3];
 
 /* @brief: return number of seconds the process has been running
- * @example: local uptime = process.uptime()
+ * @example: local uptime = process_native.uptime()
  * @return: uptime {integer}
  */
 static int LuaIO_process_uptime(lua_State *L) {
@@ -29,7 +29,7 @@ static int LuaIO_process_uptime(lua_State *L) {
 }
 
 /* @brief: set cpu affinity of a process
- * @example: local ret = process.setaffinity(pid, cpu_id)
+ * @example: local ret = process_native.setaffinity(pid, cpu_id)
  * @param: pid {integer}
  * @param: cpu_id {integer}
  * @return: ret {integer} if ret < 0 => error
@@ -72,7 +72,7 @@ static void LuaIO_process_onexit(uv_process_t *handle, int64_t status, int signa
 }
 
 /* @brief: launch a new process with the given options
- * @example: local ret = process.spawn(options)
+ * @example: local ret = process_native.spawn(options)
  * @param: options {table}
  *    local table = {
  *      file = {string}
@@ -183,7 +183,7 @@ static int LuaIO_process_spawn(lua_State *L) {
 }
 
 /* @brief: return the current working directory of the process
- * @example: local cwd = process.cwd()
+ * @example: local cwd = process_native.cwd()
  * @return: cwd {string|nil}
  */
 static int LuaIO_process_cwd(lua_State *L) {
@@ -206,7 +206,7 @@ static int LuaIO_process_cwd(lua_State *L) {
 
 /* @brief: return the absolute pathname of the executable that started the process
  *        example: /usr/local/bin/LuaIO
- * @example: local execpath = process.execpath()
+ * @example: local execpath = process_native.execpath()
  * @return: execpath {string|nil}
  */
 static int LuaIO_process_execpath(lua_State *L) {
@@ -222,7 +222,7 @@ static int LuaIO_process_execpath(lua_State *L) {
 }
 
 /* @brief: abort the process and generate a core file(if core file is open)
- * @example: process.abort()
+ * @example: process_native.abort()
  */
 static int LuaIO_process_abort(lua_State* L) {
   abort();
@@ -230,7 +230,7 @@ static int LuaIO_process_abort(lua_State* L) {
 }
 
 /* @brief: end the process with specifyed code
- * @example: process.exit([code])
+ * @example: process_native.exit([code])
  * @param: code {integer|default: 0}
  *   if code == 0 => success
  *   if code != 0 => failure
@@ -242,7 +242,7 @@ static int LuaIO_process_exit(lua_State *L) {
 }
 
 /* @brief: send a signal to a process 
- * @example: local ret = process.kill(pid[, signal])
+ * @example: local ret = process_native.kill(pid[, signal])
  * @param: pid {integer}
  * @param: signal {integer|default: SIGTERM}
  * @return: ret {integer}
