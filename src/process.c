@@ -82,8 +82,15 @@ static void LuaIO_process_onexit(uv_process_t *handle, int64_t status, int signa
  *      gid = {integer}
  *      detached = {boolean}
  *    }
- * @return: ret {integer} if ret < 0 => error
- *                        if ret > 0 => pid
+ *
+ *    @param: pid {integer}
+ *    @param: status {integer}
+ *    @param: signal {integer}
+ *    function onexit(pid, status, signal)
+ *    end
+ * @return: ret {integer} 
+ *    if ret < 0 => error
+ *    if ret > 0 => pid
  */
 static int LuaIO_process_spawn(lua_State *L) {
   uv_process_options_t options;
@@ -225,8 +232,8 @@ static int LuaIO_process_abort(lua_State* L) {
 /* @brief: end the process with specifyed code
  * @example: process.exit([code])
  * @param: code {integer|default: 0}
- *    code == 0 => success
- *    code != 0 => failure
+ *   if code == 0 => success
+ *   if code != 0 => failure
  */
 static int LuaIO_process_exit(lua_State *L) {
   int code = luaL_opt(L, luaL_checkinteger, 1, 0);
