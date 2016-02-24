@@ -17,6 +17,7 @@ uint64_t LuaIO_get_start_time();
 
 int luaopen_errno(lua_State* L);
 int luaopen_system(lua_State* L);
+int luaopen_signal(lua_State* L);
 int luaopen_process(lua_State* L);
 
 void LuaIO_date_init(); 

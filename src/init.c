@@ -71,6 +71,10 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
   lua_pushcfunction(L, luaopen_system);
   lua_setfield(L, -2, "system");
  
+  /*signal*/
+  lua_pushcfunction(L, luaopen_signal);
+  lua_setfield(L, -2, "signal");
+  
   /*process_native*/
   lua_pushcfunction(L, luaopen_process);
   lua_setfield(L, -2, "process_native");
