@@ -1,7 +1,7 @@
 local Emitter = require('emitter')
 local system = require('system');
+local signal = require('signal')
 local process_native = require('process_native')
-local signal_native = require('signal_native')
 
 local emitter = Emitter:new()
 local signals = {}
@@ -48,27 +48,34 @@ process.cwd = process_native.cwd()
 --    }
 --    
 --    -- may be used in logger
---    function onexit(pid, file, status, signal)
+--    @param: pid {integer}
+--    @param: file {string}
+--    @param: status {integer}
+--    @param: signal {integer}
+--    function onexit(pid, file, status, signum)
 --      print('module: ' .. file .. ' exit')
 --      print('pid: ' .. pid )
 --      print('error: ' .. ERRNO.parse(status))
---      print('signal: ' .. signal )
+--      print('signal: ' .. signal.parse(signum))
 --    end
 --
 --    -- may be used in logger
+--    @param: pid {integer}
+--    @param: file {string}
 --    function onrestart(pid, file)
 --      -- error
 --      if pid < 0 then
 --        print('module: ' .. file .. ' restart error')
---        print('error:' .. ERRNO.parser(pid))
+--        print('error:' .. ERRNO.parse(pid))
 --        return
 --      end
 --
 --      print('module: ' .. file .. ' restart ok')
 --      print('pid:' .. pid)
 --    end
--- @return: ret {integer} if ret < 0 => error
---                        if ret > 0 => pid
+-- @return: ret {integer} 
+--    if ret < 0 => error
+--    if ret > 0 => pid
 function process.fork(file, options)
   if type(file) ~= 'string' then
     error('process.fork(file, options) error: file must be string')
@@ -177,8 +184,9 @@ end
 -- @brief: execute command
 -- @example：local ret = process.exec(command)
 -- @param: command {string}
--- @return: ret {integer} if ret < 0 => error
---                        if ret > 0 => pid
+-- @return: ret {integer} 
+--    if ret < 0 => error
+--    if ret > 0 => pid
 function process.exec(command)
   if type(command) ~= 'string' then
     error('process.exec(command, args) error: command must be string')
@@ -196,25 +204,42 @@ function process.exec(command)
   return process_native.spawn({file = file, args = args})
 end
 
-function process.exit(signal)
-  emitter:emit('exit', signal)
-  process_native.exit(signal)
+-- @brief: end the process with specifyed code
+-- @example: process.exit([code])
+-- @param: code {integer|default: 0}
+--   if code == 0 => success
+--   if code != 0 => failure
+function process.exit(code)
+  emitter:emit('exit', code)
+  process_native.exit(code)
 end
 
+-- @brief: abort the process and generate a core file(if core file is open)
+-- @example: process.abort()
 function process.abort()
   process_native.abort()
 end
 
-function process.kill(pid, signal)
-  return process_native.kill(pid, signal)
+-- @brief: send a signal to a process 
+-- @example: local ret = process.kill(pid[, sig])
+-- @param: pid {integer}
+-- @param: sig {string|default: 'SIGTERM'}
+-- @return: ret {integer}
+function process.kill(pid, sig)
+  sig = sig or 'SIGTERM'
+  return process_native.kill(pid, signal[sig])
 end
 
+-- @brief: register event
+-- @example: process.on(name, callback)
+-- @param: name {string}
+-- @param: callback {function}
 function process.on(name, callback)
-  local signum = process_native[name]
+  local signum = signal[name]
   if type(signum) == 'number' and not signals[name] then
-    local signal = signal_native.new()
-    signals[name] = signal
-    signal:start(signum, function()
+    local sig = signal.new()
+    signals[name] = sig
+    sig:start(signum, function()
       emitter:emit(name)
     end)
   end
@@ -222,6 +247,9 @@ function process.on(name, callback)
   emitter:on(name, callback)
 end
 
+-- @brief: unregister event
+-- @example: local ret = process.kill(pid[, signal])
+-- @param: pid {integer}
 function process.off(name, callback)
   if not callback then
     local signal = signals[name]
