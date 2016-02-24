@@ -71,7 +71,7 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
   lua_pushcfunction(L, luaopen_system);
   lua_setfield(L, -2, "system");
  
-  /*process*/
+  /*process_native*/
   lua_pushcfunction(L, luaopen_process);
   lua_setfield(L, -2, "process_native");
   
@@ -105,13 +105,13 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
   
   lua_pop(L, 1);
 
-  /*argv*/
+  /*__ARGV__*/
   lua_createtable (L, argc, 0);
   for (int i = 0; i < argc; i++) {
     lua_pushstring (L, argv[i]);
     lua_rawseti(L, -2, i + 1);
   }
-  lua_setglobal(L, "argv");
+  lua_setglobal(L, "__ARGV__");
 
   /*sleep(delay)*/
   lua_pushcfunction(L, LuaIO_sleep);
