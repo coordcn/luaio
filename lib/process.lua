@@ -33,6 +33,7 @@ process.cwd = process_native.cwd()
 
 
 -- @brief: the current working directory of the process
+-- @warning: must be used in main thread
 -- @example：local ret = process.fork(file, options)
 -- @param: file {string}
 -- @param: options {table}
@@ -182,7 +183,8 @@ function process.fork(file, options)
 end
 
 -- @brief: execute command
--- @example：local ret = process.exec(command)
+-- @warning: must be used in main thread
+-- @example: local ret = process.exec(command)
 -- @param: command {string}
 -- @return: ret {integer} 
 --    if ret < 0 => error
@@ -231,6 +233,7 @@ function process.kill(pid, sig)
 end
 
 -- @brief: register event
+-- @warning: must be used in main thread
 -- @example: process.on(name, callback)
 -- @param: name {string}
 -- @param: callback {function}
@@ -248,14 +251,17 @@ function process.on(name, callback)
 end
 
 -- @brief: unregister event
--- @example: local ret = process.kill(pid[, signal])
--- @param: pid {integer}
+-- @warning: must be used in main thread
+-- @example: process.off(name[, callback])
+-- @param: name {string}
+-- @param: callback {function}
 function process.off(name, callback)
   if not callback then
     local signal = signals[name]
     if signal then
       signal:stop()
       signal:close()
+      signals[name] = nil
     end
   end
 
