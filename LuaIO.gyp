@@ -43,6 +43,7 @@
         'src/init.c',
         'src/errno.c',
         'src/system.c',
+        'src/signal.c',
         'src/process.c',
         'src/date.c',
         'src/buffer.c',
