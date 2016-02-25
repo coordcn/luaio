@@ -1,10 +1,12 @@
+-- @reference: https://github.com/nodejs/http-parser test.c
+
 local color = require('color')
 local http_native = require('http_native')
 local fs = require('fs')
 local ReadBuffer = require('read_buffer')
 local ERRNO = require('errno')
 
-local FOLDER = "http_parser/"
+local DIR = "http_parser/"
 
 function main()
   CURL_GET()
@@ -74,7 +76,9 @@ function main()
   print(color.green('test_http_parser ok'))
 end
 
-function TEST_REQ(path, data, buffer_size, request, headers)
+function TEST_REQ(name, show, data, buffer_size, request, headers, cookies)
+  print(color.blue('TESTING ' .. name))
+  local path = DIR .. name .. '.txt'
   local fd = fs.open(path, 'w')
   fs.write(fd, data)
   fs.close(fd)
@@ -84,6 +88,19 @@ function TEST_REQ(path, data, buffer_size, request, headers)
   fs.close(fd)
   local parser = http_native.new_parser()
   local method, major, minor, url, err = parser:parse_request_line(buffer)
+  if show then 
+    print('method: ' .. method)
+    print('major: ' .. major)
+    print('minor: ' .. minor)
+    if url.schema then print('url.schema: ' .. url.schema) end
+    if url.auth then print('url.auth: ' .. url.auth) end
+    if url.host then print('url.host: ' .. url.host) end
+    if url.port then print('url.port: ' .. url.port) end
+    if url.path then print('url.path: ' .. url.path) end
+    if url.query then print('url.query: ' .. url.query) end
+    if url.hash then print('url.hash: ' .. url.hash) end
+    print('error: ' .. err)
+  end
   assert(err == http_native.OK)
   assert(method == request.method)
   assert(major == request.major)
@@ -94,19 +111,22 @@ function TEST_REQ(path, data, buffer_size, request, headers)
   assert(url.port == request.port)
   assert(url.path == request.path)
   assert(url.query == request.query)
-  print(url.query)
   assert(url.hash == request.hash)
-  print(url.hash)
   local ret, n, err = parser:parse_headers(buffer)
+  if show then
+    print('nheader: ' .. n)
+    print('error: ' .. err)
+  end
   assert(n == request.nheader)
   assert(err == http_native.OK)
   for i = 1, n do
+    if show then print('headers[' .. i .. ']: ' .. ret[i]) end
     assert(ret[i] == headers[i])
   end
 end
 
 function CURL_GET()
-  local path = FOLDER .. 'CURL_GET.txt'
+  local name = 'CURL_GET'
   local data = {
     "GET /test HTTP/1.1\r\n",
     "User-Agent: curl/7.18.0 (i486-pc-linux-gnu) libcurl/7.18.0 OpenSSL/0.9.8g zlib/1.2.3.3 libidn/1.1\r\n",
@@ -138,11 +158,11 @@ function CURL_GET()
     "*/*",
   }
 
-  TEST_REQ(path, data, 512, request, headers)
+  TEST_REQ(name, true, data, 512, request, headers)
 end
 
 function FIREFOX_GET()
-  local path = FOLDER .. 'FIREFOX_GET.txt'
+  local name = 'FIREFOX_GET'
   local data = {
     "GET /favicon.ico HTTP/1.1\r\n",
     "Host: 0.0.0.0=5000\r\n",
@@ -189,11 +209,11 @@ function FIREFOX_GET()
     "keep-alive"
   }
 
-  TEST_REQ(path, data, 512, request, headers)
+  TEST_REQ(name, true, data, 512, request, headers)
 end
 
 function DUMBFUCK()
-  local path = FOLDER .. 'DUMBFUCK.txt'
+  local name = 'DUMBFUCK'
   local data = {
     "GET /dumbfuck HTTP/1.1\r\n",
     "aaaaaaaaaaaaa:++++++++++\r\n",
@@ -219,11 +239,11 @@ function DUMBFUCK()
     "++++++++++"
   }
 
-  TEST_REQ(path, data, 512, request, headers)
+  TEST_REQ(name, true, data, 512, request, headers)
 end
 
 function FRAGMENT_IN_URI()
-  local path = FOLDER .. 'FRAGMENT_IN_URI.txt'
+  local name = 'FRAGMENT_IN_URI'
   local data = {
     "GET /forums/1/topics/2375?page=1#posts-17408 HTTP/1.1\r\n",
     "\r\n"
@@ -246,11 +266,11 @@ function FRAGMENT_IN_URI()
   local headers = {
   }
 
-  TEST_REQ(path, data, 512, request, headers)
+  TEST_REQ(name, true, data, 512, request, headers)
 end
 
 function GET_NO_HEADERS_NO_BODY()
-  local path = FOLDER .. 'GET_NO_HEADERS_NO_BODY.txt'
+  local name = 'GET_NO_HEADERS_NO_BODY'
   local data = {
     "GET /get_no_headers_no_body/world HTTP/1.1\r\n",
     "\r\n"
@@ -273,11 +293,11 @@ function GET_NO_HEADERS_NO_BODY()
   local headers = {
   }
 
-  TEST_REQ(path, data, 512, request, headers)
+  TEST_REQ(name, true, data, 512, request, headers)
 end
 
 function GET_ONE_HEADERS_NO_BODY()
-  local path = FOLDER .. 'GET_ONE_HEADERS_NO_BODY.txt'
+  local name = 'GET_ONE_HEADERS_NO_BODY'
   local data = {
     "GET /get_one_headers_no_body/world HTTP/1.1\r\n",
     "Accept: */*\r\n",
@@ -303,11 +323,11 @@ function GET_ONE_HEADERS_NO_BODY()
     "*/*"
   }
 
-  TEST_REQ(path, data, 512, request, headers)
+  TEST_REQ(name, true, data, 512, request, headers)
 end
 
 function GET_FUNKY_CONTENT_LENGTH()
-  local path = FOLDER .. 'GET_FUNKY_CONTENT_LENGTH.txt'
+  local name = 'GET_FUNKY_CONTENT_LENGTH'
   local data = {
     "GET /get_funky_content_length_body_hello HTTP/1.0\r\n",
     "conTENT-Length: 5\r\n",
@@ -335,9 +355,9 @@ function GET_FUNKY_CONTENT_LENGTH()
     "5"
   }
 
-  TEST_REQ(path, data, 512, request, headers)
+  TEST_REQ(name, true, data, 512, request, headers)
 end
-
+--[[
     POST_IDENTITY_BODY_WORLD
     POST_CHUNKED_ALL_YOUR_BASE
     TWO_CHUNKS_MULT_ZERO_END
@@ -393,5 +413,5 @@ end
     SPACE_IN_FIELD_RES
     AMAZON_COM
     EMPTY_REASON_PHRASE_AFTER_SPACE
-
+--]]
 return main

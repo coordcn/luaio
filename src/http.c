@@ -263,6 +263,25 @@ static int LuaIO_http_parser_parse_request_line(lua_State *L) {
   return 5;
 }
 
+/* @example: local headers, nheader, error = http_parser:parse_headers(read_buffer)
+ * @param: read_buffer {userdate(ReadBuffer)}
+ * @return: headers {table[array(string)]}
+ *    local headers = {
+ *      "Host",
+ *      "0.0.0.0=5000",
+ *      "Accept",
+ *      "text/html",
+ *      "Connection",
+ *      "keep-alive"
+ *    }
+ * @return: nheader {integer} 
+ * @return: error {integer}
+ *
+ * @TODO
+ *    local headers = {}
+ *    local cookies = {}
+ *    local error = http_parser:parse_headers(read_buffer, headers, cookies)
+ */
 static int LuaIO_http_parser_parse_headers(lua_State *L) {
   LuaIO_http_check_http_parser(L, parse_headers(buffer));
   LuaIO_http_check_buffer(L, parse_headers(buffer));

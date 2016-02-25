@@ -48,7 +48,7 @@ int LuaIO_init(lua_State *L, int argc, char* argv[]) {
   LuaIO_platform_init();
   LuaIO_date_init(); 
   LuaIO_pmemory_init(LUAIO_PMEMORY_MAX_FREE_CHUNKS);
-  LuaIO_signal_init(LUAIO_SIGNAL_MAX_FREE_CHUNKS);
+  LuaIO_signal_pool_init(LUAIO_SIGNAL_MAX_FREE_CHUNKS);
   LuaIO_timer_init(LUAIO_TIMER_MAX_FREE_TIMERS);
   LuaIO_dns_init(L);
   LuaIO_tcp_connect_req_pool_init(LUAIO_TCP_CONNECT_REQ_POOL_MAX_FREE_CHUNKS);

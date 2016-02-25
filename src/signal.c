@@ -52,7 +52,7 @@ static int LuaIO_signal_new(lua_State *L) {
   *signal_ptr = signal;
 
   uv_loop_t *loop = uv_default_loop();
-  uv_signal_init *handle = &signal->handle;
+  uv_signal_t *handle = &signal->handle;
   uv_signal_init(loop, handle);
   uv_unref((uv_handle_t*)handle);
   signal->current_thread = L;
@@ -87,7 +87,7 @@ static int LuaIO_signal_start(lua_State *L) {
     return luaL_argerror(L, 2, "signal:start(signum, callback) error: callback must be function\n"); 
   }
 
-  int callback_ref = signal->callback_ref
+  int callback_ref = signal->callback_ref;
   if (callback_ref != LUA_NOREF) {
     luaL_unref(L, LUA_REGISTRYINDEX, callback_ref);
   }
@@ -125,7 +125,7 @@ static void LuaIO_signal_onclose(uv_handle_t *handle) {
 static int LuaIO_signal_close(lua_State *L) {
   LuaIO_signal_check_signal(L, close());
 
-  int callback_ref = signal->callback_ref
+  int callback_ref = signal->callback_ref;
   if (callback_ref != LUA_NOREF) {
     luaL_unref(L, LUA_REGISTRYINDEX, callback_ref);
   }
@@ -281,7 +281,9 @@ static int LuaIO_signal_parse(lua_State *L) {
     XX(SIGABRT)
 #endif
 #ifdef SIGIOT
+  #if SIGIOT != SIGABRT
     XX(SIGIOT)
+  #endif
 #endif
 #ifdef SIGBUS
     XX(SIGBUS)
@@ -356,20 +358,24 @@ static int LuaIO_signal_parse(lua_State *L) {
     XX(SIGIO)
 #endif
 #ifdef SIGPOLL
+  #if SIGPOLL != SIGIO
     XX(SIGPOLL)
+  #endif
 #endif
 #ifdef SIGLOST
     XX(SIGLOST)
 #endif
 #ifdef SIGPWR
+  #if SIGPWR != SIGLOST
     XX(SIGPWR)
+  #endif
 #endif
 #ifdef SIGSYS
     XX(SIGSYS)
 #endif
     default:
       signame = "UNKNOWN";
-}
+  }
 
 #undef XX
 

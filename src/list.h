@@ -105,7 +105,7 @@ static inline int LuaIO_list_is_last(const LuaIO_list_t *list,
   @member:	the name of the LuaIO_list_t within the struct.
  */
 #define LuaIO_list_entry(ptr, type, member) \
-	container_of(ptr, type, member)
+  container_of(ptr, type, member)
 
 /**
   LuaIO_list_first_entry - get the first element from a list
@@ -115,7 +115,7 @@ static inline int LuaIO_list_is_last(const LuaIO_list_t *list,
   Note that if the list is empty, it returns NULL.
  */
 #define LuaIO_list_first_entry(ptr, type, member) \
-	(!LuaIO_list_is_empty(ptr) ? LuaIO_list_entry((ptr)->next, type, member) : NULL)
+  (!LuaIO_list_is_empty(ptr) ? LuaIO_list_entry((ptr)->next, type, member) : NULL)
 
 /**
   LuaIO_list_next_entry - get the next element in list
@@ -123,7 +123,7 @@ static inline int LuaIO_list_is_last(const LuaIO_list_t *list,
   @member:	the name of the LuaIO_list_t within the struct.
  */
 #define LuaIO_list_next_entry(pos, member) \
-	LuaIO_list_entry((pos)->member.next, typeof(*(pos)), member)
+  LuaIO_list_entry((pos)->member.next, typeof(*(pos)), member)
 
 /**
   LuaIO_list_prev_entry - get the prev element in list
@@ -131,7 +131,7 @@ static inline int LuaIO_list_is_last(const LuaIO_list_t *list,
   @member:	the name of the LuaIO_list_t within the struct.
  */
 #define LuaIO_list_prev_entry(pos, member) \
-	LuaIO_list_entry((pos)->member.prev, typeof(*(pos)), member)
+  LuaIO_list_entry((pos)->member.prev, typeof(*(pos)), member)
 
 /**
   LuaIO_list_foreach	-	iterate over a list
@@ -139,7 +139,7 @@ static inline int LuaIO_list_is_last(const LuaIO_list_t *list,
   @head:	the head for your list.
  */
 #define LuaIO_list_foreach(pos, head) \
-	for (pos = (head)->next; pos != (head); pos = pos->next)
+  for (pos = (head)->next; pos != (head); pos = pos->next)
 
 /**
   LuaIO_list_foreach_reverse	-	iterate over a list backwards
@@ -147,7 +147,7 @@ static inline int LuaIO_list_is_last(const LuaIO_list_t *list,
   @head:	the head for your list.
  */
 #define LuaIO_list_foreach_reverse(pos, head) \
-	for (pos = (head)->prev; pos != (head); pos = pos->prev)
+  for (pos = (head)->prev; pos != (head); pos = pos->prev)
 
 /**
   LuaIO_list_foreach_entry	-	iterate over list of given type
@@ -156,9 +156,9 @@ static inline int LuaIO_list_is_last(const LuaIO_list_t *list,
   @member:	the name of the LuaIO_list_t within the struct.
  */
 #define LuaIO_list_foreach_entry(pos, head, member)				\
-	for (pos = LuaIO_list_entry((head)->next, typeof(*pos), member);	\
-	     &pos->member != (head); 	\
-	     pos = LuaIO_list_entry(pos->member.next, typeof(*pos), member))
+  for (pos = LuaIO_list_entry((head)->next, typeof(*pos), member);	\
+       &pos->member != (head); 	\
+       pos = LuaIO_list_entry(pos->member.next, typeof(*pos), member))
 
 /**
   LuaIO_list_foreach_entry_reverse - iterate backwards over list of given type.
@@ -167,9 +167,9 @@ static inline int LuaIO_list_is_last(const LuaIO_list_t *list,
   @member:	the name of the list_struct within the struct.
  */
 #define LuaIO_list_foreach_entry_reverse(pos, head, member)			\
-	for (pos = LuaIO_list_entry((head)->prev, typeof(*pos), member);	\
-	     &pos->member != (head); 	\
-	     pos = LuaIO_list_entry(pos->member.prev, typeof(*pos), member))
+  for (pos = LuaIO_list_entry((head)->prev, typeof(*pos), member);	\
+       &pos->member != (head); 	\
+       pos = LuaIO_list_entry(pos->member.prev, typeof(*pos), member))
 
 /**
   Double linked lists with a single pointer list head.
@@ -229,10 +229,10 @@ static inline void LuaIO_hlist_insert_head(LuaIO_hlist_node_t *node,
 }
 
 #define LuaIO_hlist_entry(ptr, type, member) \
-	container_of(ptr, type, member)
+  container_of(ptr, type, member)
 
 #define LuaIO_hlist_for_each(pos, head) \
-	for (pos = (head)->first; pos ; pos = pos->next)
+  for (pos = (head)->first; pos ; pos = pos->next)
 
 /**
   LuaIO_hlist_for_each_entry	- iterate over list of given type
@@ -241,8 +241,8 @@ static inline void LuaIO_hlist_insert_head(LuaIO_hlist_node_t *node,
   @member:	the name of the LuaIO_hlist_node_t within the struct.
  */
 #define LuaIO_hlist_for_each_entry(pos, head, member)				\
-	for (pos = hlist_entry((head)->first, typeof(*(pos)), member);\
-	     pos;							\
-	     pos = hlist_entry((pos)->member.next, typeof(*(pos)), member))
+  for (pos = hlist_entry((head)->first, typeof(*(pos)), member);\
+       pos;							\
+       pos = hlist_entry((pos)->member.next, typeof(*(pos)), member))
 
 #endif /*LUAIO_LIST_H*/

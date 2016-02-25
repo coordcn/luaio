@@ -127,29 +127,28 @@ static int LuaIO_process_spawn(lua_State *L) {
   /*uid*/
   lua_getfield(L, 1, "uid");
   if (lua_type(L, -1) == LUA_TNUMBER) {
-    options->uid = lua_tointeger(L, -1);
-    options->flags |= UV_PROCESS_SETUID;
+    options.uid = lua_tointeger(L, -1);
+    options.flags |= UV_PROCESS_SETUID;
   }
   lua_pop(L, 1);
 
   /*gid*/
   lua_getfield(L, 1, "gid");
   if (lua_type(L, -1) == LUA_TNUMBER) {
-    options->gid = lua_tointeger(L, -1);
-    options->flags |= UV_PROCESS_SETGID;
+    options.gid = lua_tointeger(L, -1);
+    options.flags |= UV_PROCESS_SETGID;
   }
   lua_pop(L, 1);
 
   /*detached*/
   lua_getfield(L, 1, "detached");
   if (lua_toboolean(L, -1)) {
-    options->flags |= UV_PROCESS_DETACHED;
+    options.flags |= UV_PROCESS_DETACHED;
   }
   lua_pop(L, 1);
 
   /*onexit*/
   lua_getfield(L, 1, "onexit");
-  type = lua_type(L, -1);
   int onexit_ref = LUA_NOREF;
   if (lua_type(L, -1) == LUA_TFUNCTION) {
     onexit_ref = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -169,7 +168,7 @@ static int LuaIO_process_spawn(lua_State *L) {
   process->onexit_ref = onexit_ref;
 
   uv_process_t *handle = &process->handle;
-  int ret = uv_spawn(uv_default_loop(), handle, options);
+  int ret = uv_spawn(uv_default_loop(), handle, &options);
   LuaIO_free(args);
 
   if (ret < 0) {
@@ -218,7 +217,7 @@ static int LuaIO_process_execpath(lua_State *L) {
   } else {
     lua_pushlstring(L, buf, size);
   }
-  return 1
+  return 1;
 }
 
 /* @brief: abort the process and generate a core file(if core file is open)
@@ -255,114 +254,6 @@ static int LuaIO_process_kill(lua_State *L) {
   return 1;
 }
 
-static void LuaIO_process_setup_constants(lua_State *L) {
-#ifdef SIGHUP
-  LuaIO_constant(SIGHUP)
-#endif
-#ifdef SIGINT
-  LuaIO_constant(SIGINT)
-#endif
-#ifdef SIGQUIT
-  LuaIO_constant(SIGQUIT)
-#endif
-#ifdef SIGILL
-  LuaIO_constant(SIGILL)
-#endif
-#ifdef SIGTRAP
-  LuaIO_constant(SIGTRAP)
-#endif
-#ifdef SIGABRT
-  LuaIO_constant(SIGABRT)
-#endif
-#ifdef SIGIOT
-  LuaIO_constant(SIGIOT)
-#endif
-#ifdef SIGBUS
-  LuaIO_constant(SIGBUS)
-#endif
-#ifdef SIGFPE
-  LuaIO_constant(SIGFPE)
-#endif
-#ifdef SIGKILL
-  LuaIO_constant(SIGKILL)
-#endif
-#ifdef SIGUSR1
-  LuaIO_constant(SIGUSR1)
-#endif
-#ifdef SIGSEGV
-  LuaIO_constant(SIGSEGV)
-#endif
-#ifdef SIGUSR2
-  LuaIO_constant(SIGUSR2)
-#endif
-#ifdef SIGPIPE
-  LuaIO_constant(SIGPIPE)
-#endif
-#ifdef SIGALRM
-  LuaIO_constant(SIGALRM)
-#endif
-#ifdef SIGTERM
-  LuaIO_constant(SIGTERM)
-#endif
-#ifdef SIGCHLD
-  LuaIO_constant(SIGCHLD)
-#endif
-#ifdef SIGSTKFLT
-  LuaIO_constant(SIGSTKFLT)
-#endif
-#ifdef SIGCONT
-  LuaIO_constant(SIGCONT)
-#endif
-#ifdef SIGSTOP
-  LuaIO_constant(SIGSTOP)
-#endif
-#ifdef SIGTSTP
-  LuaIO_constant(SIGTSTP)
-#endif
-#ifdef SIGBREAK
-  LuaIO_constant(SIGBREAK)
-#endif
-#ifdef SIGTTIN
-  LuaIO_constant(SIGTTIN)
-#endif
-#ifdef SIGTTOU
-  LuaIO_constant(SIGTTOU)
-#endif
-#ifdef SIGURG
-  LuaIO_constant(SIGURG)
-#endif
-#ifdef SIGXCPU
-  LuaIO_constant(SIGXCPU)
-#endif
-#ifdef SIGXFSZ
-  LuaIO_constant(SIGXFSZ)
-#endif
-#ifdef SIGVTALRM
-  LuaIO_constant(SIGVTALRM)
-#endif
-#ifdef SIGPROF
-  LuaIO_constant(SIGPROF)
-#endif
-#ifdef SIGWINCH
-  LuaIO_constant(SIGWINCH)
-#endif
-#ifdef SIGIO
-  LuaIO_constant(SIGIO)
-#endif
-#ifdef SIGPOLL
-  LuaIO_constant(SIGPOLL)
-#endif
-#ifdef SIGLOST
-  LuaIO_constant(SIGLOST)
-#endif
-#ifdef SIGPWR
-  LuaIO_constant(SIGPWR)
-#endif
-#ifdef SIGSYS
-  LuaIO_constant(SIGSYS)
-#endif
-}
-
 int luaopen_process(lua_State *L) {
   LuaIO_process_stdio[0].flags = UV_INHERIT_FD;
   LuaIO_process_stdio[0].data.fd = 0;
@@ -393,7 +284,6 @@ int luaopen_process(lua_State *L) {
   lua_setfield(L, -2, "__metatable");
   lua_pushinteger(L, getpid());
   lua_setfield(L, -2, "pid");
-  LuaIO_process_setup_constants(L);
 
   lua_setmetatable(L, -2);
 

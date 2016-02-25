@@ -34,6 +34,14 @@ function Set:delete(value)
   end
 end
 
+function Set:clear()
+  if self.size ~= 0 then
+    self.values = {}
+    self.keys = {}
+    self.size = 0
+  end
+end
+
 function Set:has(value)
   if self.keys[value] then 
     return true

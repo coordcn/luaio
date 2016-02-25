@@ -96,8 +96,8 @@ int luaopen_system(lua_State *L) {
   const char *type;
   const char *release;
   const char *endian;
-
-#ifdef __POSIX__
+#define test 1
+#ifdef test
   struct utsname info;
   if (uname(&info) < 0) {
     type = "Unknown";
@@ -106,8 +106,8 @@ int luaopen_system(lua_State *L) {
 
   type = info.sysname;
   release = info.release;
-#else /* windows */
-  type = "Windows"
+#else
+  type = "Windows";
 
   OSVERSIONINFOW info;
   info.dwOSVersionInfoSize = sizeof(info);
