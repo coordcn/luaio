@@ -336,7 +336,6 @@ int luaopen_write_buffer(lua_State *L) {
     { "write_double_le", luaio_buffer_write_double_le },
     { "write_double_be", luaio_buffer_write_double_be },
     { "__gc", luaio_buffer_gc },
-    { "__newindex", luaio_cannot_change },
     { NULL, NULL }
   };
 
@@ -344,8 +343,6 @@ int luaopen_write_buffer(lua_State *L) {
   luaL_newlib(L, write_buffer_mtlib);
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
-  lua_pushliteral(L, "metatable is protected");
-  lua_setfield(L, -2, "__metatable");
   lua_rawset(L, LUA_REGISTRYINDEX);
 
   luaL_Reg lib[] = {

@@ -714,30 +714,30 @@ static int luaio_tcp_is_ip(lua_State *L) {
 }
 
 int luaopen_tcp(lua_State *L) {
-  /*tcp metatable*/
+  /*tcp socket metatable*/
+  luaL_Reg tcp_socket_mtlib[] = {
+    { "bind", luaio_tcp_socket_bind },
+    { "listen", luaio_tcp_socket_listen },
+    { "connect", luaio_tcp_socket_connect },
+    { "fd", luaio_tcp_socket_fd },
+    { "set_read_buffer", luaio_tcp_socket_set_read_buffer },
+    { "read", luaio_tcp_socket_read },
+    { "set_write_callback", luaio_tcp_socket_set_write_callback },
+    { "write", luaio_tcp_socket_write },
+    { "local_address", luaio_tcp_socket_local_address },
+    { "remote_address", luaio_tcp_socket_remote_address },
+    { "set_timeout", luaio_tcp_socket_set_timeout },
+    { "set_nodelay", luaio_tcp_socket_set_nodelay },
+    { "set_keepalive", luaio_tcp_socket_set_keepalive },
+    { "shutdown", luaio_tcp_socket_shutdown },
+    { "close", luaio_tcp_socket_close },
+    { NULL, NULL }
+  };
+
   lua_pushlightuserdata(L, &luaio_tcp_socket_metatable_key);
-
-  lua_createtable(L, 0, 16);
-  luaio_function(luaio_tcp_socket_bind, "bind")
-  luaio_function(luaio_tcp_socket_listen, "listen")
-  luaio_function(luaio_tcp_socket_connect, "connect")
-  luaio_function(luaio_tcp_socket_fd, "fd")
-  luaio_function(luaio_tcp_socket_set_read_buffer, "set_read_buffer")
-  luaio_function(luaio_tcp_socket_read, "read")
-  luaio_function(luaio_tcp_socket_set_write_callback, "set_write_callback")
-  luaio_function(luaio_tcp_socket_write, "write")
-  luaio_function(luaio_tcp_socket_local_address, "local_address")
-  luaio_function(luaio_tcp_socket_remote_address, "remote_address")
-  luaio_function(luaio_tcp_socket_set_timeout, "set_timeout")
-  luaio_function(luaio_tcp_socket_set_nodelay, "set_nodelay")
-  luaio_function(luaio_tcp_socket_set_keepalive, "set_keepalive")
-  luaio_function(luaio_tcp_socket_shutdown, "shutdown")
-  luaio_function(luaio_tcp_socket_close, "close")
-
+  luaL_newlib(L, tcp_socket_mtlib);
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
-
-  /*save tcp metatable*/
   lua_rawset(L, LUA_REGISTRYINDEX);
 
   luaL_Reg lib[] = {
