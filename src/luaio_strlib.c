@@ -107,26 +107,11 @@ static int split_text_by_one_byte_char(lua_State* L,
                                        char c,
                                        size_t textlen) {
   int count = 0;
-  const char *find;
   const char *start = text;
+  const char *find = start;
   const char *end = text + textlen;
   
   lua_createtable(L, 0, 0);
-  find = luaio_memchr(start, c, textlen);
-  if (find != NULL) {
-    if (find != start) {
-      count++;
-      lua_pushlstring(L, start, find - start); 
-      lua_rawseti(L, -2, count);
-    }
-    find++;
-  } else {
-    count++;
-    lua_pushvalue(L, 1); 
-    lua_rawseti(L, -2, count);
-    return count;
-  }
-
   while (find < end) {
     if (*find != c) {
       start = find;
@@ -141,9 +126,15 @@ static int split_text_by_one_byte_char(lua_State* L,
         count++;
         lua_pushlstring(L, start, find - start); 
         lua_rawseti(L, -2, count);
+        find++;
       } else {
         count++;
-        lua_pushlstring(L, start, end - start); 
+        if (count == 1) {
+          /*reuse the input string*/
+          lua_pushvalue(L, 1);
+        } else {
+          lua_pushlstring(L, start, end - start);
+        }
         lua_rawseti(L, -2, count);
         return count;
       }
@@ -214,33 +205,13 @@ static int split_text(lua_State *L,
                       size_t textlen, 
                       size_t patternlen) {
   int count = 0;
-  const char *find;
   const char *start = text;
+  const char *find = start;
   const char *end = text + textlen;
   const char *endcmp = end - patternlen;
   char c = *pattern;
 
   lua_createtable(L, 0, 0);
-  find = luaio_memchr(start, c, textlen);
-  if (find != NULL) {
-    if (luaio_streq(find, pattern, patternlen)) {
-      if (find != start) {
-        count++;
-        lua_pushlstring(L, start, find - start); 
-        lua_rawseti(L, -2, count);
-      }
-      find += patternlen;
-      start = find;
-    } else {
-      find++;
-    }
-  } else {
-    count++;
-    lua_pushvalue(L, 1); 
-    lua_rawseti(L, -2, count);
-    return count;
-  }
-
   while (find <= endcmp) {
     find = luaio_memchr(find, c, end - find);
     if (find != NULL) {
@@ -257,7 +228,12 @@ static int split_text(lua_State *L,
       }
     } else {
       count++;
-      lua_pushlstring(L, start, end - start); 
+      if (count == 1) {
+        /*reuse the input string*/
+        lua_pushvalue(L, 1);
+      } else {
+        lua_pushlstring(L, start, end - start);
+      }
       lua_rawseti(L, -2, count);
       return count;
     }
