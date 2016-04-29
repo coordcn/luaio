@@ -2,8 +2,6 @@ local strlib_native = require('strlib_native')
 
 local strgmatch = string.gmatch
 local strmatch = string.match
-local utf8char = utf8.char
-local utf8codes = utf8.codes
 
 local strlib = {}
 
