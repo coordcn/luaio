@@ -209,7 +209,6 @@ enum state {
   s_header_field,
   s_header_space_before_value,
   s_header_value,
-  s_header_space_after_value,
   s_header_almost_done,
   s_headers_almost_done
 };
@@ -270,37 +269,11 @@ enum http_host_state {
 #endif
 
 
-void http_parser_init(http_parser *parser) {
-  parser->url.schema.base = NULL;
-  parser->url.schema.len = 0;
-  parser->url.userinfo.base = NULL;
-  parser->url.userinfo.len = 0;
-  parser->url.host.base = NULL;
-  parser->url.host.len = 0;
-  parser->url.port.base = NULL;
-  parser->url.port.len = 0;
-  parser->url.path.base = NULL;
-  parser->url.path.len = 0;
-  parser->url.query.base = NULL;
-  parser->url.query.len = 0;
-  parser->url.fragment.base = NULL;
-  parser->url.fragment.len = 0;
-  parser->url.server.base = NULL;
-  parser->url.server.len = 0;
-
-  parser->last_pos = NULL;
-  parser->nread = 0;
-  parser->http_major = 0;
-  parser->http_minor = 0;
-  parser->status_code = 0;
-  parser->method = 0;
-  parser->state = 0;
-  parser->nbuf = 0;
-  parser->index = 0;
-  parser->found_at = 0;
+void http_parser_init(http_parser_t *parser) {
+  memset(parser, 0, sizeof(http_parser_t));
 }
 
-int http_parse_status_line(http_parser *parser, char *data, char *last) {
+int http_parse_status_line(http_parser_t *parser, char *data, char *last) {
   char ch;
   char *p;
   enum state p_state = (enum state)parser->state;
@@ -311,8 +284,8 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
 
   for (; p < last; p++) {
     ch = *p;
-    parser->nread += 1;
-    if (UNLIKELY(parser->nread > parser->max_header_line_size)) {
+    parser->nread++;
+    if (UNLIKELY(parser->nread > HTTP_MAX_STATUS_LINE_SIZE)) {
       RETURN(HTTP_ERROR);
     }
 
@@ -507,7 +480,7 @@ int http_parse_status_line(http_parser *parser, char *data, char *last) {
   return HTTP_AGAIN;
 }
 
-int http_parse_request_line(http_parser *parser, char *data, char *last) {
+int http_parse_request_line(http_parser_t *parser, char *data, char *last) {
   char ch;
   char *p;
   enum state p_state = (enum state)parser->state;
@@ -518,8 +491,8 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
 
   for (; p < last; p++) {
     ch = *p;
-    parser->nread += 1;
-    if (UNLIKELY(parser->nread > parser->max_header_line_size)) {
+    parser->nread++;
+    if (UNLIKELY(parser->nread > HTTP_MAX_REQUEST_LINE_SIZE)) {
       RETURN(HTTP_REQUEST_URI_TOO_LARGE);
     }
 
@@ -549,8 +522,7 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
           case 'S': parser->method = HTTP_SUBSCRIBE; /* or SEARCH */ break;
           case 'T': parser->method = HTTP_TRACE; break;
           case 'U': parser->method = HTTP_UNLOCK; /* or UNSUBSCRIBE */ break;
-          default:
-                    RETURN(HTTP_BAD_REQUEST);
+          default: RETURN(HTTP_BAD_REQUEST);
         }
         UPDATE_STATE(s_req_method);
 
@@ -1065,11 +1037,16 @@ int http_parse_request_line(http_parser *parser, char *data, char *last) {
   return HTTP_AGAIN;
 }
 
-int http_parse_headers(http_parser *parser, char *data, char *last) {
+int http_parse_headers(http_parser_t *parser, 
+                       char *data, 
+                       char *last,
+                       http_buf_t* headers,
+                       size_t *n) {
   char ch, c;
-  char *p;
-  http_buf_t *buf;
+  char *p, *find, *base;
   enum state p_state = (enum state) parser->state;
+  size_t nheader = *n;
+  size_t field_index, value_index;
 
   assert(data <= last);
   p = parser->last_pos ? parser->last_pos : data;
@@ -1077,8 +1054,8 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
 
   for (; p < last; p++) {
     ch = *p;
-    parser->nread += 1;
-    if (UNLIKELY(parser->nread > parser->max_header_line_size)) {
+    parser->nread++;
+    if (UNLIKELY(parser->nread > HTTP_MAX_HEADER_SIZE)) {
       RETURN(HTTP_BAD_REQUEST);
     }
 
@@ -1092,6 +1069,7 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
 
         if (ch == LF) {
           parser->nread = 0;
+          *n = nheader;
           UPDATE_STATE(s_start);
           RETURN(HTTP_OK);
         }
@@ -1102,7 +1080,7 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
         }
 
         *p = c;
-        parser->headers[parser->nbuf].base = p;
+        parser->field.base = p;
         ++parser->index;
         UPDATE_STATE(s_header_field);
         break;
@@ -1111,8 +1089,7 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
       case s_header_field:
       {
         if (ch == ':') {
-          buf = &(parser->headers[parser->nbuf]);
-          buf->len = p - buf->base;
+          parser->field.len = p - parser->field.base;
           ++parser->index;
           UPDATE_STATE(s_header_space_before_value);
           break;
@@ -1137,19 +1114,30 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
         }
 
         if (ch == LF) {
-          parser->nbuf += 2;
+          field_index = nheader << 1;
+          value_index = field_index + 1;
+          headers[field_index].base = parser->field.base;
+          headers[field_index].len = parser->field.len;
+          headers[value_index].base = NULL;
+          headers[value_index].len = 0;
           parser->index = 0;
-          parser->nread = 0;
           UPDATE_STATE(s_start);
 
-          if (parser->nbuf == HTTP_MAX_HEADERS_PER_READ * 2) {
+          ++parser->nheader;
+          if (parser->nheader > HTTP_MAX_HEADERS) {
+            RETURN(HTTP_BAD_REQUEST);
+          }
+
+          ++nheader;
+          if (nheader >= HTTP_MAX_HEADERS_PER_READ) {
+            *n = nheader;
             RETURN(HTTP_DONE);
           }
 
           break;
         }
 
-        parser->headers[parser->nbuf + 1].base = p;
+        parser->value.base = p;
         ++parser->index;
         UPDATE_STATE(s_header_value);
         break;
@@ -1157,65 +1145,41 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
 
       case s_header_value:
       {
-        if (ch == ' ' || ch == '\t') {
-          UPDATE_STATE(s_header_space_after_value);
-          break;
-        }
-
-        if (ch == CR) {
-          buf = &(parser->headers[parser->nbuf + 1]);
-          buf->len = p - buf->base;
-          UPDATE_STATE(s_header_almost_done);
-          break;
-        }
-
-        if (ch == LF) {
-          buf = &(parser->headers[parser->nbuf + 1]);
-          buf->len = p - buf->base;
-          parser->nbuf += 2;
-          parser->index = 0;
-          parser->nread = 0;
-          UPDATE_STATE(s_start);
-
-          if (parser->nbuf == HTTP_MAX_HEADERS_PER_READ * 2) {
-            RETURN(HTTP_DONE);
+        find = memchr(p, LF, last - p);
+        if (find != NULL) {
+          p = find;
+          /*CR*/
+          if (*(find - 1) == CR) find--;
+          /*SPACE TAB*/
+          base = parser->value.base;
+          while (--find > base) {
+            c = *find;
+            if (c != ' ' && c != '\t') break;
           }
 
-          break;
-        }
-
-        break;
-      }
-
-      case s_header_space_after_value:
-      {
-        if (ch == ' ' || ch == '\t') {
-          break;
-        }
-
-        if (ch == CR) {
-          buf = &(parser->headers[parser->nbuf + 1]);
-          buf->len = p - buf->base;
-          UPDATE_STATE(s_header_almost_done);
-          break;
-        }
-
-        if (ch == LF) {
-          buf = &(parser->headers[parser->nbuf + 1]);
-          buf->len = p - buf->base;
-          parser->nbuf += 2;
+          field_index = nheader << 1;
+          value_index = field_index + 1;
+          headers[field_index].base = parser->field.base;
+          headers[field_index].len = parser->field.len;
+          headers[value_index].base = base;
+          headers[value_index].len = find - base + 1;
           parser->index = 0;
-          parser->nread = 0;
           UPDATE_STATE(s_start);
-
-          if (parser->nbuf == HTTP_MAX_HEADERS_PER_READ * 2) {
+  
+          ++parser->nheader;
+          if (parser->nheader > HTTP_MAX_HEADERS) {
+            RETURN(HTTP_BAD_REQUEST);
+          }
+  
+          ++nheader;
+          if (nheader >= HTTP_MAX_HEADERS_PER_READ) {
+            *n = nheader;
             RETURN(HTTP_DONE);
           }
-
-          break;
+        } else {
+          p = last;
         }
 
-        UPDATE_STATE(s_header_value);
         break;
       }
 
@@ -1223,12 +1187,23 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
       {
         STRICT_CHECK(ch != LF, HTTP_BAD_REQUEST);
 
-        parser->nbuf += 2;
+        field_index = nheader << 1;
+        value_index = field_index + 1;
+        headers[field_index].base = parser->field.base;
+        headers[field_index].len = parser->field.len;
+        headers[value_index].base = NULL;
+        headers[value_index].len = 0;
         parser->index = 0;
-        parser->nread = 0;
         UPDATE_STATE(s_start);
 
-        if (parser->nbuf == HTTP_MAX_HEADERS_PER_READ * 2) {
+        ++parser->nheader;
+        if (parser->nheader > HTTP_MAX_HEADERS) {
+          RETURN(HTTP_BAD_REQUEST);
+        }
+
+        ++nheader;
+        if (nheader >= HTTP_MAX_HEADERS_PER_READ) {
+          *n = nheader;
           RETURN(HTTP_DONE);
         }
 
@@ -1238,6 +1213,7 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
       case s_headers_almost_done:
         STRICT_CHECK(ch != LF, HTTP_BAD_REQUEST);
         parser->nread = 0;
+        *n = nheader;
         UPDATE_STATE(s_start);
         RETURN(HTTP_OK);
 
@@ -1252,7 +1228,7 @@ int http_parse_headers(http_parser *parser, char *data, char *last) {
   return HTTP_AGAIN;
 }
 
-int http_parse_host(http_url *url, char *data, size_t len, uint8_t found_at) {
+int http_parse_host(http_url_t *url, char *data, size_t len, uint8_t found_at) {
   char ch;
   char *p;
   enum http_host_state s = found_at ? s_http_userinfo_start : s_http_host_start;
@@ -1428,7 +1404,7 @@ int http_parse_host(http_url *url, char *data, size_t len, uint8_t found_at) {
   return HTTP_OK;
 }
 
-int http_parse_url(http_url *url, char *data, size_t len) {
+int http_parse_url(http_url_t *url, char *data, size_t len) {
   char ch;
   char *p;
   uint8_t found_at = 0;

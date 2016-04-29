@@ -101,15 +101,12 @@ enum http_method {
 /*parse Request-URI Too Large*/
 #define HTTP_REQUEST_URI_TOO_LARGE      414
 
-typedef struct http_parser http_parser;
-typedef struct http_url http_url;
-
 typedef struct {
   char    *base;
   size_t  len;
 } http_buf_t;
 
-struct http_url {
+typedef struct {
   http_buf_t schema;
   http_buf_t userinfo;
   http_buf_t host;
@@ -119,36 +116,48 @@ struct http_url {
   http_buf_t fragment;
   /*USERINFO@HOST:PORT*/
   http_buf_t server;
-};
+} http_url_t;
 
-#define HTTP_MAX_HEADERS_PER_READ      16
-struct http_parser {
-  http_url    url;
-  /*headers[0]: field*/
-  /*headers[1]: value*/
-  http_buf_t  headers[HTTP_MAX_HEADERS_PER_READ * 2];
+#define HTTP_MAX_STATUS_LINE_SIZE     (16 * 1024)
+#define HTTP_MAX_REQUEST_LINE_SIZE    (16 * 1024)
+#define HTTP_MAX_HEADER_SIZE          (64 * 1024)
+#define HTTP_MAX_HEADERS              256
+#define HTTP_MAX_HEADERS_PER_READ     64
+
+typedef struct {
+  http_url_t  url;
+  http_buf_t  field;
+  http_buf_t  value;
   char        *last_pos;
   uint32_t    nread;
-  uint32_t    max_header_line_size;
   uint16_t    http_major;
   uint16_t    http_minor;
   uint16_t    status_code;
+  uint16_t    nheader;
   uint8_t     method;
   uint8_t     state;
-  /*current headers_num * 2*/
-  uint8_t     nbuf;
   uint8_t     index;
   uint8_t     found_at;
-};
+} http_parser_t;
 
-void http_parser_init(http_parser *parser);
+void http_parser_init(http_parser_t *parser);
 
-int http_parse_status_line(http_parser *parser, char *data, char *last);
-int http_parse_request_line(http_parser *parser, char *data, char *last);
-int http_parse_headers(http_parser *parser, char *data, char *last);
+int http_parse_status_line(http_parser_t *parser, char *data, char *last);
 
-int http_parse_host(http_url *url, char *data, size_t len, uint8_t found_at);
-int http_parse_url(http_url *url, char *data, size_t len);
+int http_parse_request_line(http_parser_t *parser, char *data, char *last);
+
+int http_parse_headers(http_parser_t *parser, 
+                       char *data, 
+                       char *last, 
+                       http_buf_t* headers, 
+                       size_t *nheader);
+
+int http_parse_host(http_url_t *url, 
+                    char *data, 
+                    size_t len, 
+                    uint8_t found_at);
+
+int http_parse_url(http_url_t *url, char *data, size_t len);
 
 #ifdef __cplusplus
 }
