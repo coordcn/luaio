@@ -18,6 +18,34 @@
 #include "luaio_hash.h"
 #include "luaio_buffer.h"
 
+#if defined(LUAIO_WINDOWS)
+
+#define LUAIO_COLOR_RESET
+#define LUAIO_COLOR_BLACK
+#define LUAIO_COLOR_RED
+#define LUAIO_COLOR_GREEN
+#define LUAIO_COLOR_YELLOW
+#define LUAIO_COLOR_BLUE
+#define LUAIO_COLOR_MAGENTA
+#define LUAIO_COLOR_CYAN
+#define LUAIO_COLOR_WHITE
+
+#else
+
+#define LUAIO_COLOR_RESET   "\033[0m"
+#define LUAIO_COLOR_BLACK   "\033[0;30m"
+#define LUAIO_COLOR_RED     "\033[0;31m"
+#define LUAIO_COLOR_GREEN   "\033[0;32m"
+#define LUAIO_COLOR_YELLOW  "\033[0;33m"
+#define LUAIO_COLOR_BLUE    "\033[0;34m"
+#define LUAIO_COLOR_MAGENTA "\033[0;35m"
+#define LUAIO_COLOR_CYAN    "\033[0;36m"
+#define LUAIO_COLOR_WHITE   "\033[0;37m"
+
+#endif
+
+#define LUAIO_COLOR_ERROR   LUAIO_COLOR_GREEN
+
 /*errno*/
 #define LUAIO_ARES_MAGIC                    -16834
 #define LUAIO_EAGAIN                        -9527
