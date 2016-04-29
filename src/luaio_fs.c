@@ -17,50 +17,27 @@ typedef struct {
 } luaio_fs_req_t;
 
 static int luaio_fs_parse_open_flags(lua_State *L, const char *flags, size_t len) {
-  if (len == 1) { 
-    if (luaio_strcmp1(flags, 'r')) {
-      return O_RDONLY;
-    }
+  if (luaio_strcaseeq(flags, "r", 1)) return O_RDONLY;
+  if (luaio_strcaseeq(flags, "w", 1)) return O_TRUNC | O_CREAT | O_WRONLY;
+  if (luaio_strcaseeq(flags, "a", 1)) return O_APPEND | O_CREAT | O_WRONLY;
+  if (luaio_strcaseeq(flags, "r+", 2)) return O_RDWR;
+  if (luaio_strcaseeq(flags, "w+", 2)) return O_TRUNC | O_CREAT | O_RDWR;
+  if (luaio_strcaseeq(flags, "a+", 2)) return O_APPEND | O_CREAT | O_RDWR;
 
-    if (luaio_strcmp1(flags, 'w')) {
-      return O_TRUNC | O_CREAT | O_WRONLY;
-    }
+  if (luaio_strcaseeq(flags, "wx", 2) || luaio_strcaseeq(flags, "xw", 2)) {
+    return O_TRUNC | O_CREAT | O_WRONLY | O_EXCL;
+  }
 
-    if (luaio_strcmp1(flags, 'a')) {
-      return O_APPEND | O_CREAT | O_WRONLY;
-    }
-  } else if (len == 2) {
-    if (luaio_strcmp2(flags, 'r', '+')) {
-      return O_RDWR;
-    }
+  if (luaio_strcaseeq(flags, "ax", 2) || luaio_strcaseeq(flags, "xa", 2)) {
+    return O_APPEND | O_CREAT | O_WRONLY | O_EXCL;
+  }
 
-    if (luaio_strcmp2(flags, 'w', '+')) {
-      return O_TRUNC | O_CREAT | O_RDWR;
-    }
+  if (luaio_strcaseeq(flags, "wx+", 3) || luaio_strcaseeq(flags, "xw+", 3)) {
+    return O_TRUNC | O_CREAT | O_RDWR | O_EXCL;
+  }
 
-    if (luaio_strcmp2(flags, 'w', 'x')
-        || luaio_strcmp2(flags, 'x', 'w')) {
-      return O_TRUNC | O_CREAT | O_WRONLY | O_EXCL;
-    }
-
-    if (luaio_strcmp2(flags, 'a', '+')) {
-      return O_APPEND | O_CREAT | O_RDWR;
-    }
-
-    if (luaio_strcmp2(flags, 'a', 'x')
-        || luaio_strcmp2(flags, 'x', 'a')) {
-      return O_APPEND | O_CREAT | O_WRONLY | O_EXCL;
-    }
-  } else if (len == 3) {
-    if (luaio_strcmp3(flags, 'w', 'x', '+')
-        || luaio_strcmp3(flags, 'x', 'w', '+')) {
-      return O_TRUNC | O_CREAT | O_RDWR | O_EXCL;
-    }
-
-    if (luaio_strcmp3(flags, 'a', 'x', '+')
-        || luaio_strcmp3(flags, 'x', 'a', '+')) {
-      return O_APPEND | O_CREAT | O_RDWR |O_EXCL;
-    }
+  if (luaio_strcaseeq(flags, "ax+", 3) || luaio_strcaseeq(flags, "xa+", 3)) {
+    return O_APPEND | O_CREAT | O_RDWR |O_EXCL;
   }
 
   return luaL_error(L, "fs_native.open(path, flags, mode) error: unknown file open flag[%s]", flags);
