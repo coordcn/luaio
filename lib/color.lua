@@ -24,11 +24,17 @@ local function _color(color_name)
   return "\27[" .. (colors[color_name] or "0") .. "m"
 end
 
-local function colorize(color_name, string, reset_name)
-  return _color(color_name) .. string .. _color(reset_name)
-end
+local colorize
 
-color.colorize = colorize
+if system.type == 'Windows' then
+  colorize = function(color_name, string, reset_name)
+    return string
+  end
+else
+  colorize = function(color_name, string, reset_name)
+    return _color(color_name) .. string .. _color(reset_name)
+  end
+end
 
 function color.red(string)
   return colorize('red', string, 'white')
