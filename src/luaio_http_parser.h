@@ -157,7 +157,7 @@ int http_parse_host(http_url_t *url,
                     size_t len, 
                     uint8_t found_at);
 
-int http_parse_url(http_url_t *url, char *data, size_t len);
+int http_parse_url(http_url_t *url, char *data, size_t len, int is_connect);
 
 #ifdef __cplusplus
 }
