@@ -72,8 +72,8 @@ static int luaio_http_parser_parse_status_line(lua_State *L) {
     parser->last_pos = NULL;
 
     return 4;
-  }
-    
+  } 
+  
   if (ret == HTTP_AGAIN && write_pos == buffer->end) {
     start = buffer->start;
 
@@ -143,13 +143,25 @@ static int luaio_http_parser_parse_request_line(lua_State *L) {
     size_t length = url->server.len;
     if (server && length > 0) {
       ret = http_parse_host(url, server, length, parser->found_at);
-      if (ret) {
-        lua_pushnil(L);
-        lua_pushnil(L);
-        lua_pushnil(L);
-        lua_pushnil(L);
-        lua_pushinteger(L, HTTP_BAD_REQUEST);
-        return 5;
+
+      if (ret) goto BAD_REQUEST;
+    }
+
+    /* host must be present if there is a schema */
+    /* parsing http:///toto will fail */
+    if (url->schema.base != NULL && url->host.base == NULL) goto BAD_REQUEST;
+  
+    /* CONNECT requests can only contain "hostname:port" */
+    if (parser->method == HTTP_CONNECT) {
+      if (url->host.base != NULL && url->port.base != NULL) {
+        if (url->userinfo.base != NULL
+            || url->path.base != NULL 
+            || url->query.base != NULL 
+            || url->fragment.base != NULL) {
+          goto BAD_REQUEST;
+        }
+      } else {
+        goto BAD_REQUEST;
       }
     }
 
@@ -196,11 +208,11 @@ static int luaio_http_parser_parse_request_line(lua_State *L) {
     parser->last_pos = NULL;
 
     return 5;
-  }
-    
+  } 
+  
   if (ret == HTTP_AGAIN && write_pos == buffer->end) {
     start = buffer->start;
-
+ 
     /* start == read_pos   write_pos == end
      * |                           |
      * +++++++++++++++++++++++++++++
@@ -213,14 +225,14 @@ static int luaio_http_parser_parse_request_line(lua_State *L) {
       lua_pushinteger(L, HTTP_REQUEST_URI_TOO_LARGE);
       return 5;
     }
-
+ 
     /* start  read_pos   write_pos == end
      * |        |                   |
      * ---------+++++++++++++++++++++
      */
     rest_size = write_pos - read_pos;
     dist = read_pos - start;
-
+ 
     luaio_memmove(start, read_pos, rest_size);
     buffer->read_pos = start;
     buffer->write_pos = start + rest_size;
@@ -229,19 +241,19 @@ static int luaio_http_parser_parse_request_line(lua_State *L) {
     if (url->schema.base != NULL) {
       url->schema.base -= dist;
     }
-
+ 
     if (url->server.base != NULL) {
       url->server.base -= dist;
     }
-
+ 
     if (url->path.base != NULL) {
       url->path.base -= dist;
     }
-
+ 
     if (url->query.base != NULL) {
       url->query.base -= dist;
     }
-
+ 
     if (url->fragment.base != NULL) {
       url->fragment.base -= dist;
     }
@@ -252,6 +264,14 @@ static int luaio_http_parser_parse_request_line(lua_State *L) {
   lua_pushnil(L);
   lua_pushnil(L);
   lua_pushinteger(L, ret);
+  return 5;
+
+BAD_REQUEST:
+  lua_pushnil(L);
+  lua_pushnil(L);
+  lua_pushnil(L);
+  lua_pushnil(L);
+  lua_pushinteger(L, HTTP_BAD_REQUEST);
   return 5;
 }
 
@@ -277,6 +297,34 @@ static int luaio_http_parser_parse_headers(lua_State *L) {
   char *write_pos = buffer->write_pos;
   int ret = http_parse_headers(parser, read_pos, write_pos, headers, &nheader);
   last_pos = parser->last_pos;
+
+  assert(nheader <= HTTP_MAX_HEADERS_PER_READ);
+  if (nheader > 0) {
+    size_t ncookie = lua_rawlen(L, 4);
+  
+    char *field, *value;
+    size_t field_len, value_len, field_index, value_index;
+    for (size_t i = 0; i < nheader; i++) {
+      field_index = i << 1;
+      value_index = field_index + 1;
+      field = headers[field_index].base;
+      field_len = headers[field_index].len;
+      value = headers[value_index].base;
+      value_len = headers[value_index].len;
+  
+      if (value != NULL) {
+        if ((field_len == 6 && luaio_streq(field, "cookie", 6))
+            || (field_len == 10 && luaio_streq(field, "set-cookie", 10))) {
+          lua_pushlstring(L, value, value_len);
+          lua_rawseti(L, 4, ncookie++);
+        } else {
+          lua_pushlstring(L, field, field_len);
+          lua_pushlstring(L, value, value_len);
+          lua_rawset(L, 3);
+        }
+      }
+    }
+  }
 
   if (ret == HTTP_OK || ret == HTTP_DONE) {
     if (last_pos == write_pos) {
@@ -304,7 +352,8 @@ static int luaio_http_parser_parse_headers(lua_State *L) {
        * |        |                   |
        * ---------+++++++++++++++++++++
        */
-      if (parser->index == 0) { 
+      uint8_t index = parser->index;
+      if (index == 0) { 
         buffer->read_pos = start;
         buffer->write_pos = start;
         parser->last_pos = NULL;
@@ -316,38 +365,18 @@ static int luaio_http_parser_parse_headers(lua_State *L) {
         write_pos = start + rest_size;
         buffer->write_pos = write_pos;
         parser->last_pos = write_pos;
+        
+        if (index == 3) {
+          char* value_base = parser->value.base;
+          rest_size = value_base - read_pos;
+          parser->value.base = start + rest_size;
+        }
+
+        parser->field.base = start;
       }
     }
-  } else {
-    lua_pushinteger(L, ret);
-    return 1;
   }
   
-  size_t ncookie = lua_rawlen(L, 4);
-
-  char *field, *value;
-  size_t field_len, value_len, field_index, value_index;
-  for (size_t i = 0; i < nheader; i++) {
-    field_index = i << 1;
-    value_index = field_index + 1;
-    field = headers[field_index].base;
-    field_len = headers[field_index].len;
-    value = headers[value_index].base;
-    value_len = headers[value_index].len;
-
-    if (value != NULL) {
-      if ((field_len == 6 && luaio_streq(field, "cookie", 6))
-          || (field_len == 10 && luaio_streq(field, "set-cookie", 10))) {
-        lua_pushlstring(L, value, value_len);
-        lua_rawseti(L, 4, ncookie++);
-      } else {
-        lua_pushlstring(L, field, field_len);
-        lua_pushlstring(L, value, value_len);
-        lua_rawset(L, 3);
-      }
-    }
-  }
-
   lua_pushinteger(L, ret);
   return 1;
 }
@@ -362,8 +391,9 @@ static int luaio_http_parse_url(lua_State *L) {
   http_url_t url;
   size_t len;
   char *str = (char*)luaL_checklstring(L, 1, &len);
+  int is_connect = lua_toboolean(L, 2);
 
-  int ret = http_parse_url(&url, str, len);
+  int ret = http_parse_url(&url, str, len, is_connect);
   if (ret) {
     lua_pushnil(L);
   } else {
