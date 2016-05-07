@@ -1,0 +1,6 @@
+CONNECT foo.bar.com:443 HTTP/1.0
+User-agent: Mozilla/1.1N
+Proxy-authorization: basic aGVsbG86d29ybGQ=
+Content-Length: 10
+
+blarfcicle

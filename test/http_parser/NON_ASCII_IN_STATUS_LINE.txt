@@ -1,0 +1,5 @@
+HTTP/1.1 500 Oriëntatieprobleem
+Date: Fri, 5 Nov 2010 23:07:12 GMT+2
+Content-Length: 0
+Connection: close
+

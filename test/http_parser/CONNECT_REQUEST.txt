@@ -1,0 +1,6 @@
+CONNECT 0-home0.netscape.com:443 HTTP/1.0
+User-agent: Mozilla/1.1N
+Proxy-authorization: basic aGVsbG86d29ybGQ=
+
+some data
+and yet even more data

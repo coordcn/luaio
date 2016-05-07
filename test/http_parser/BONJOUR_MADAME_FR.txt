@@ -1,0 +1,11 @@
+HTTP/1.0 301 Moved Permanently
+Date: Thu, 03 Jun 2010 09:56:32 GMT
+Server: Apache/2.2.3 (Red Hat)
+Cache-Control: public
+Pragma: 
+Location: http://www.bonjourmadame.fr/
+Vary: Accept-Encoding
+Content-Length: 0
+Content-Type: text/html; charset=UTF-8
+Connection: keep-alive
+

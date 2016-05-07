@@ -1,0 +1,2 @@
+GET /test.cgi?foo=bar?baz HTTP/1.1
+

@@ -1,0 +1,2 @@
+GET http://a%12:b!&*$@hypnotoad.org:1234/toto HTTP/1.1
+
