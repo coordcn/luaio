@@ -43,43 +43,44 @@ typedef unsigned __int64 uint64_t;
 
 /* Request Methods */
 #define HTTP_METHOD_MAP(XX)         \
-  XX(0,  DELETE,      DELETE)       \
+  XX(0,  UNKNOWN,     UNKNOWN)      \
   XX(1,  GET,         GET)          \
-  XX(2,  HEAD,        HEAD)         \
-  XX(3,  POST,        POST)         \
+  XX(2,  POST,        POST)         \
+  XX(3,  HEAD,        HEAD)         \
   XX(4,  PUT,         PUT)          \
+  XX(5,  DELETE,      DELETE)       \
   /* pathological */                \
-  XX(5,  CONNECT,     CONNECT)      \
-  XX(6,  OPTIONS,     OPTIONS)      \
-  XX(7,  TRACE,       TRACE)        \
+  XX(6,  CONNECT,     CONNECT)      \
+  XX(7,  OPTIONS,     OPTIONS)      \
+  XX(8,  TRACE,       TRACE)        \
   /* WebDAV */                      \
-  XX(8,  COPY,        COPY)         \
-  XX(9,  LOCK,        LOCK)         \
-  XX(10, MKCOL,       MKCOL)        \
-  XX(11, MOVE,        MOVE)         \
-  XX(12, PROPFIND,    PROPFIND)     \
-  XX(13, PROPPATCH,   PROPPATCH)    \
-  XX(14, SEARCH,      SEARCH)       \
-  XX(15, UNLOCK,      UNLOCK)       \
-  XX(16, BIND,        BIND)         \
-  XX(17, REBIND,      REBIND)       \
-  XX(18, UNBIND,      UNBIND)       \
-  XX(19, ACL,         ACL)          \
+  XX(9,  COPY,        COPY)         \
+  XX(10,  LOCK,        LOCK)         \
+  XX(11, MKCOL,       MKCOL)        \
+  XX(12, MOVE,        MOVE)         \
+  XX(13, PROPFIND,    PROPFIND)     \
+  XX(14, PROPPATCH,   PROPPATCH)    \
+  XX(15, SEARCH,      SEARCH)       \
+  XX(16, UNLOCK,      UNLOCK)       \
+  XX(17, BIND,        BIND)         \
+  XX(18, REBIND,      REBIND)       \
+  XX(19, UNBIND,      UNBIND)       \
+  XX(20, ACL,         ACL)          \
   /* subversion */                  \
-  XX(20, REPORT,      REPORT)       \
-  XX(21, MKACTIVITY,  MKACTIVITY)   \
-  XX(22, CHECKOUT,    CHECKOUT)     \
-  XX(23, MERGE,       MERGE)        \
+  XX(21, REPORT,      REPORT)       \
+  XX(22, MKACTIVITY,  MKACTIVITY)   \
+  XX(23, CHECKOUT,    CHECKOUT)     \
+  XX(24, MERGE,       MERGE)        \
   /* upnp */                        \
-  XX(24, MSEARCH,     M-SEARCH)     \
-  XX(25, NOTIFY,      NOTIFY)       \
-  XX(26, SUBSCRIBE,   SUBSCRIBE)    \
-  XX(27, UNSUBSCRIBE, UNSUBSCRIBE)  \
+  XX(25, MSEARCH,     M-SEARCH)     \
+  XX(26, NOTIFY,      NOTIFY)       \
+  XX(27, SUBSCRIBE,   SUBSCRIBE)    \
+  XX(28, UNSUBSCRIBE, UNSUBSCRIBE)  \
   /* RFC-5789 */                    \
-  XX(28, PATCH,       PATCH)        \
-  XX(29, PURGE,       PURGE)        \
+  XX(29, PATCH,       PATCH)        \
+  XX(30, PURGE,       PURGE)        \
   /* CalDAV */                      \
-  XX(30, MKCALENDAR,  MKCALENDAR)   \
+  XX(31, MKCALENDAR,  MKCALENDAR)   \
 
 enum http_method {
 #define XX(num, name, string) HTTP_##name = num,
