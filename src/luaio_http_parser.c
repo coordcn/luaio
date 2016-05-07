@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <stdio.h>
 
 #ifndef ULLONG_MAX
 # define ULLONG_MAX ((uint64_t) -1) /* 2^64-1 */
@@ -611,7 +612,8 @@ int http_parse_request_line(http_parser_t *parser, char *data, char *last) {
         if (ch == ' ') break;
 
         if (parser->method == HTTP_CONNECT) {
-          UPDATE_STATE(s_req_server_start);
+          parser->url.server.base = p;
+          UPDATE_STATE(s_req_server);
           break;
         }
 
@@ -1223,6 +1225,7 @@ int http_parse_headers(http_parser_t *parser,
     }
   }
 
+  *n = nheader;
   parser->state = CURRENT_STATE();
   parser->last_pos = p;
   return HTTP_AGAIN;
@@ -1231,6 +1234,7 @@ int http_parse_headers(http_parser_t *parser,
 int http_parse_host(http_url_t *url, char *data, size_t len, uint8_t found_at) {
   char ch;
   char *p;
+  int host_colon = 0;
   enum http_host_state s = found_at ? s_http_userinfo_start : s_http_host_start;
 
   char *end = data + len;
@@ -1276,6 +1280,7 @@ int http_parse_host(http_url_t *url, char *data, size_t len, uint8_t found_at) {
           url->host.base = p;
           ++url->host.len;
           s = s_http_host;
+          break;
         }
 
         if (ch == '[') {
@@ -1295,6 +1300,7 @@ int http_parse_host(http_url_t *url, char *data, size_t len, uint8_t found_at) {
 
         if (ch == ':') {
           s = s_http_host_port_start;
+          host_colon = 1;
           break;
         }
 
@@ -1326,6 +1332,7 @@ int http_parse_host(http_url_t *url, char *data, size_t len, uint8_t found_at) {
         }
 
         if (ch == '%') {
+          ++url->host.len;
           s = s_http_host_v6_zone_start;
           break;
         }
@@ -1367,6 +1374,7 @@ int http_parse_host(http_url_t *url, char *data, size_t len, uint8_t found_at) {
       {
         if (ch == ':') {
           s = s_http_host_port_start;
+          host_colon = 1;
           break;
         }
 
@@ -1401,24 +1409,30 @@ int http_parse_host(http_url_t *url, char *data, size_t len, uint8_t found_at) {
     }
   }
 
+  /* http://hostname:/ */
+  if (url->host.base != NULL && host_colon 
+      && url->port.base == NULL) {
+    return HTTP_ERROR;
+  }
+
   return HTTP_OK;
 }
 
-int http_parse_url(http_url_t *url, char *data, size_t len) {
+int http_parse_url(http_url_t *url, char *data, size_t len, int is_connect) {
   char ch;
   char *p;
   uint8_t found_at = 0;
-  enum state s = s_start;
-  memset(url, 0, sizeof(*url));
+  enum state s = is_connect ? s_req_server_start : s_req_spaces_before_url;
+  memset(url, 0, sizeof(http_url_t));
 
   char *end = data + len;
   for (p = data; p < end; p++) {
     ch = *p;
 
     switch (s) {
-      case s_start:
+      case s_req_spaces_before_url:
       {
-        if (ch == '/') {
+        if (ch == '/' || ch == '*') {
           url->path.base = p;
           ++url->path.len;
           s = s_req_path;
@@ -1497,6 +1511,7 @@ int http_parse_url(http_url_t *url, char *data, size_t len) {
           default:
             return HTTP_ERROR;
         }
+
         break;
       }
 
@@ -1518,11 +1533,13 @@ int http_parse_url(http_url_t *url, char *data, size_t len) {
             break;
           case '@':
             if (found_at) return HTTP_ERROR;
+            ++url->server.len;
             found_at = 1;
             break;
           default:
             return HTTP_ERROR;
         }
+
         break;
       }
 
@@ -1543,6 +1560,7 @@ int http_parse_url(http_url_t *url, char *data, size_t len) {
           default:
             return HTTP_ERROR;
         }
+
         break;
       }
 
@@ -1610,8 +1628,29 @@ int http_parse_url(http_url_t *url, char *data, size_t len) {
 
   char *server = url->server.base;
   size_t length = url->server.len;
-  if (server && len > 0) {
-    return http_parse_host(url, server, length, found_at);
+  if (server && length > 0) {
+    int ret = http_parse_host(url, server, length, found_at);
+    if (ret) return ret;
+  }
+
+  /* host must be present if there is a schema */
+  /* parsing http:///toto will fail */
+  if (url->schema.base != NULL && url->host.base == NULL) return HTTP_ERROR;
+
+  /* CONNECT requests can only contain "hostname:port" */
+  if (is_connect) {
+    if (url->host.base != NULL && url->port.base != NULL) {
+      if (url->userinfo.base != NULL
+          || url->path.base != NULL 
+          || url->query.base != NULL 
+          || url->fragment.base != NULL) {
+        return HTTP_ERROR;
+      } else {
+        return HTTP_OK;
+      }
+    } else {
+      return HTTP_ERROR;
+    }
   }
 
   return HTTP_OK;
