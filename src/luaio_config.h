@@ -180,7 +180,45 @@
 #define LUAIO_512K_SHIFT          19
 #define LUAIO_1M_SHIFT            20
 
-#define LUAIO_USE_PMEMORY         1
+#define luaio_malloc    malloc
+#define luaio_realloc   realloc
+#define luaio_free      free
+
+/* Linux has memalign() or posix_memalign()
+ * Solaris has memalign()
+ * FreeBSD 7.0 has posix_memalign(), besides, early version's malloc()
+ * aligns allocations bigger than page size at the page boundary
+ */
+#define HAVE_POSIX_MEMALIGN 1
+
+/*#define HAVE_MEMALIGN 1*/
+
+#if HAVE_POSIX_MEMALIGN
+
+static inline void *luaio_memalign(size_t align, size_t size) {
+  void *p;
+  int err = posix_memalign(&p, align, size);
+  return err ? NULL : p;
+}
+
+#elif HAVE_MEMALIGN
+
+#define luaio_memalign(align, size) memalign(align, size) 
+
+#else
+
+#define luaio_memalign(align, size) luaio_malloc(size)
+
+#endif
+
+#define luaio_memset                memset
+#define luaio_memcpy                memcpy
+#define luaio_memmove               memmove
+#define luaio_memcmp                memcmp
+#define luaio_memchr                memchr
+#define luaio_memzero(p, size)      memset(p, 0, size)
+
+#define LUAIO_USE_PMEMORY         0
 #define LUAIO_MAX_FREE_TIMERS     1024
 
 #endif /* LUAIO_CONFIG_H */

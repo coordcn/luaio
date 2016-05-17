@@ -32,7 +32,6 @@
         ]
       },
       'sources': [
-        'src/luaio_alloc.c',
         'src/luaio_buffer.c',
         'src/luaio_date.c',
         'src/luaio_dns.c',
