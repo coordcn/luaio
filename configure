@@ -38,29 +38,11 @@ parser.add_option("--openssl-no-asm",
     action="store_true",
     dest="openssl_no_asm",
     help="Do not build optimized assembly for OpenSSL")
-    
-parser.add_option('--without-ssl',
-    action='store_true',
-    dest='without_ssl',
-    help='build without SSL')
 
-# deprecated
-parser.add_option('--openssl-includes',
+parser.add_option('--openssl-fips',
     action='store',
-    dest='shared_openssl_includes',
-    help=optparse.SUPPRESS_HELP)
-
-# deprecated
-parser.add_option('--openssl-libpath',
-    action='store',
-    dest='shared_openssl_libpath',
-    help=optparse.SUPPRESS_HELP)
-
-# deprecated
-parser.add_option('--openssl-use-sys',
-    action='store_true',
-    dest='shared_openssl',
-    help=optparse.SUPPRESS_HELP)
+    dest='openssl_fips',
+    help='Build OpenSSL using FIPS canister .o file in supplied folder')
     
 parser.add_option('--ninja',
     action='store_true',
@@ -145,13 +127,26 @@ def target_arch():
 
 def configure_luaio(o):
   # TODO add gdb and dest_cpu
+  o['variables']['node_byteorder'] = sys.byteorder
   o['variables']['luaio_debug'] = 'true' if options.debug else 'false'
   o['variables']['luaio_prefix'] = options.prefix if options.prefix else ''
   o['variables']['host_arch'] = host_arch()
   o['variables']['target_arch'] = options.arch if options.arch else target_arch()
-  
+
 def configure_libuv(o):
   o['variables']['uv_library'] = 'static_library'
+
+def configure_openssl(o):
+ o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
+ if options.openssl_fips:
+   o['variables']['openssl_fips'] = options.openssl_fips
+   fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
+   fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
+   o['make_fips_settings'] = [
+     ['LINK', fips_ld + ' <(openssl_fips)/bin/fipsld'],
+   ]
+ else:
+   o['variables']['openssl_fips'] = ''
 
 #print "configure options:", options
 
@@ -165,6 +160,7 @@ output = {
 
 configure_luaio(output)
 configure_libuv(output)
+configure_openssl(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults

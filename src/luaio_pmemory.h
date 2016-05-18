@@ -8,7 +8,7 @@
 #define LUAIO_PMEMORY_H
 
 #include "luaio_list.h"
-#include "luaio_alloc.h"
+#include "luaio_config.h"
 
 #define LUAIO_PMEMORY_ALIGNMENT sizeof(size_t)
 

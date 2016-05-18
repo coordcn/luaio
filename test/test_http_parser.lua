@@ -2760,7 +2760,7 @@ function URL()
     local case = url_test[i]
     
     if PRINT_RESULT then
-      print(color.blue('NAME: ' .. case.name))
+      print(color.blue('CASE: ' .. case.name))
       print(color.green('URL: ' .. case.url))
     end
 

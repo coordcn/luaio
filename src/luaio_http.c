@@ -143,7 +143,6 @@ static int luaio_http_parser_parse_request_line(lua_State *L) {
     size_t length = url->server.len;
     if (server && length > 0) {
       ret = http_parse_host(url, server, length, parser->found_at);
-
       if (ret) goto BAD_REQUEST;
     }
 
@@ -267,6 +266,7 @@ static int luaio_http_parser_parse_request_line(lua_State *L) {
   return 5;
 
 BAD_REQUEST:
+    fprintf(stderr, "test: %d\n", HTTP_BAD_REQUEST);
   lua_pushnil(L);
   lua_pushnil(L);
   lua_pushnil(L);

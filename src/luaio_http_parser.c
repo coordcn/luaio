@@ -1150,6 +1150,7 @@ int http_parse_headers(http_parser_t *parser,
         find = memchr(p, LF, last - p);
         if (find != NULL) {
           p = find;
+          /* @TODO ugly, someone improve it */
           /*CR*/
           if (*(find - 1) == CR) find--;
           /*SPACE TAB*/

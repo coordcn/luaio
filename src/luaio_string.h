@@ -7,7 +7,7 @@
 #ifndef LUAIO_STRING_H
 #define LUAIO_STRING_H
 
-#include "luaio_alloc.h"
+#include "luaio_config.h"
 #include "luaio_pmemory.h"
 
 #define luaio_lower(c)              (unsigned char) (c | 0x20)

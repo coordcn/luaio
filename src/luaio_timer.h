@@ -9,7 +9,7 @@
 
 #include "uv.h"
 #include "luaio_list.h"
-#include "luaio_alloc.h"
+#include "luaio_config.h"
 
 #define LUAIO_TIMER_ALIGNMENT 64
 

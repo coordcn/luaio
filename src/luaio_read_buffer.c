@@ -133,34 +133,34 @@ static int luaio_buffer_readline(lua_State *L) {
   luaio_buffer_check_read_buffer(L, readline());
   luaio_buffer_check_memory(L, readline());
 
+  char *start;
   char *read_pos = buffer->read_pos;
   char *write_pos = buffer->write_pos;
-  char *pos = read_pos;
-  char *start;
-  int flag = 0;
-  int rest_size;
-  char c;
+  int rest_size = write_pos - read_pos;
+  assert(rest_size >= 0);
 
-  while (pos < write_pos) {
-    c = *pos;
-    pos++;
-    if (c == '\n') {
-      flag = 1;
-      break;
-    }
+  if (rest_size == 0) {
+    lua_pushnil(L);
+    lua_pushinteger(L, LUAIO_EAGAIN);
+    return 2;
   }
+
+  char *find = luaio_memchr(read_pos, '\n', rest_size);
 
   /* start   read_pos   \n   write_pos   end 
    * |          |        |      |          |
    * -----------+++++++++++++++++-----------
    */
-  if (flag) {
-    rest_size = buffer->write_pos - buffer->read_pos;
-    assert(rest_size >= 0);
+  if (find != NULL) {
+    int size = find - read_pos;
+    int n = size + 1;
+ 
+    if (size > 0 && *(find - 1) == '\r') {
+      --size;
+    }
 
-    int n = pos - read_pos;
-    lua_pushlstring(L, buffer->read_pos, n);
-    lua_pushinteger(L, n);
+    lua_pushlstring(L, read_pos, size);
+    lua_pushinteger(L, size);
 
     luaio_buffer_check_rest_size(n);
     return 2;
@@ -183,9 +183,6 @@ static int luaio_buffer_readline(lua_State *L) {
      * |        |                   |
      * ---------+++++++++++++++++++++
      */
-    rest_size = write_pos - read_pos;
-    assert(rest_size >= 0);
-
     luaio_memmove(start, read_pos, rest_size);
     buffer->read_pos = start;
     buffer->write_pos = start + rest_size;

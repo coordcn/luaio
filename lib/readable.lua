@@ -53,7 +53,7 @@ function Readable:read(n)
   
   if n == nil then n = -1 end
   local val, err = self.read_buffer:read(n)
-  if err > 0 then return val, err end
+  if err >= 0 then return val, err end
 
   while true do
     ret = self:_read()
@@ -79,7 +79,7 @@ function Readable:readline()
   end
   
   local val, err = self.read_buffer:readline()
-  if err > 0 then return val, err end
+  if err >= 0 then return val, err end
   if err == ERRNO.LUAIO_EXCEED_BUFFER_CAPACITY then
     return val, err
   end

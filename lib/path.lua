@@ -44,6 +44,7 @@ function posix.basename(path, extname)
   return ext == extname and name or name .. ext
 end
 
+-- @TODO maybe rewrite by c
 function posix.extname(path)
   local dir, name, ext = path:match(posix_split_reg)
   return ext
@@ -58,6 +59,7 @@ function posix.parse(path)
   return path:match(posix_split_reg)
 end
 
+-- @TODO maybe rewrite by c
 function posix.normalize(path)
   if not path or path == '' then return '.' end
   
