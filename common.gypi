@@ -7,7 +7,7 @@
   ],
 
   'target_defaults': {
-    'default_configuration': 'Debug',
+    'default_configuration': 'Release',
     'configurations': {
       'Debug': {
         'defines': [ 'DEBUG', '_DEBUG' ],
@@ -147,11 +147,18 @@
             'cflags': [ '-m64' ],
             'ldflags': [ '-m64' ],
           }],
+          [ 'OS=="linux"', {
+            'libraries': [ '-lm', '-lrt' ],
+          }],
+          [ 'OS=="freebsd"', {
+            'ldflags': [ '-lm' ],
+          }],
           [ 'OS=="solaris"', {
             'cflags': [ '-pthreads' ],
             'ldflags': [ '-pthreads' ],
             'cflags!': [ '-pthread' ],
             'ldflags!': [ '-pthread' ],
+            'libraries': [ '-lm' ],
           }],
         ],
       }],

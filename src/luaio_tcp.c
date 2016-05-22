@@ -44,7 +44,7 @@ static char luaio_tcp_socket_metatable_key;
     return luaL_argerror(L, 1, "socket:"#name" error: socket must be [userdata](socket)\n"); \
   }
 
-/*local socket = tcp.new()*/
+/*local socket = tcp.new([true])*/
 static int luaio_tcp_socket_new(lua_State *L) {
   luaio_tcp_socket_t *socket = lua_newuserdata(L, sizeof(luaio_tcp_socket_t));
   if (socket == NULL) {
@@ -55,14 +55,23 @@ static int luaio_tcp_socket_new(lua_State *L) {
   uv_loop_t *loop = uv_default_loop();
   uv_tcp_init(loop, &socket->handle);
 
+  int ref_thread = lua_toboolean(L, 1);
+
   socket->type = LUAIO_TYPE_SOCKET;
   socket->thread = L;
   socket->current_thread = L;
   socket->read_buffer = NULL;
   socket->timer = NULL;
   socket->timeout = 0;
+
+  if (ref_thread) {
+    lua_pushthread(L);
+    socket->thread_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  } else {
+    socket->thread_ref = LUA_NOREF;
+  }
+
   socket->onconnect_ref = LUA_NOREF;
-  socket->thread_ref = LUA_NOREF;
   socket->write_callback_ref = LUA_NOREF;
 
   lua_pushlightuserdata(L, &luaio_tcp_socket_metatable_key);
@@ -104,52 +113,13 @@ static int luaio_tcp_socket_bind(lua_State *L) {
 }
 
 static void luaio_tcp_server_onconnect(uv_stream_t *handle, int status) {
-  if (status ) {
-    fprintf(stderr, "server onconnect error: %s\n", uv_strerror(status));
-    return;
-  }
-
   luaio_tcp_socket_t* server = container_of(handle, luaio_tcp_socket_t, handle);
-  lua_State *L = server->thread;
-  lua_State *co = lua_newthread(L);
-  int thread_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  lua_State *L = server->current_thread;
 
   /*onconnect*/
-  lua_rawgeti(co, LUA_REGISTRYINDEX, server->onconnect_ref);
-
-  luaio_tcp_socket_t *socket = lua_newuserdata(co, sizeof(luaio_tcp_socket_t));
-  if (socket == NULL) {
-    luaL_unref(L, LUA_REGISTRYINDEX, thread_ref);
-    fprintf(stderr, "server onconnect error: no memory for new connection\n");
-    return;
-  }
-
-  uv_loop_t *loop = uv_default_loop();
-  uv_tcp_t *client_handle = &socket->handle;
-  uv_tcp_init(loop, client_handle);
-  int err = uv_accept(handle, (uv_stream_t*)client_handle);
-  if (err) {
-    luaL_unref(L, LUA_REGISTRYINDEX, thread_ref);
-    uv_close((uv_handle_t*)(client_handle), NULL);
-    fprintf(stderr, "server onconnect error: %s\n", uv_strerror(err));
-    return;
-  }
-
-  socket->type = LUAIO_TYPE_SOCKET;
-  socket->thread = co;
-  socket->current_thread = co;
-  socket->read_buffer = NULL;
-  socket->timer = NULL;
-  socket->timeout = server->timeout;
-  socket->onconnect_ref = LUA_NOREF;
-  socket->thread_ref = thread_ref;
-  socket->write_callback_ref = LUA_NOREF;
-
-  lua_pushlightuserdata(co, &luaio_tcp_socket_metatable_key);
-  lua_rawget(co, LUA_REGISTRYINDEX);
-  lua_setmetatable(co, -2);
-
-  luaio_resume(co, 1);
+  lua_rawgeti(L, LUA_REGISTRYINDEX, server->onconnect_ref);
+  lua_pushinteger(L, status);
+  luaio_pcall(L, 1);
 }
 
 /*local err = socket:listen(onconnect, tcp_backlog)*/
@@ -167,6 +137,23 @@ static int luaio_tcp_socket_listen(lua_State *L) {
   int err = uv_listen((uv_stream_t*)(&socket->handle), tcp_backlog, luaio_tcp_server_onconnect);
 
   lua_pushinteger(L, err);
+  return 1;
+}
+
+/*local err = socket:accept(client)*/
+static int luaio_tcp_socket_accept(lua_State *L) {
+  luaio_tcp_check_socket(L, accept(client));
+
+  luaio_tcp_socket_t *client = lua_touserdata(L, 2);
+  if (socket == NULL || socket->type != LUAIO_TYPE_SOCKET) {
+    return luaL_argerror(L, 2, "socket:accept(client) error: client must be [userdata](socket)\n"); \
+  }
+
+  uv_stream_t *server_handle = (uv_stream_t*)&socket->handle;
+  uv_stream_t *client_handle = (uv_stream_t*)&client->handle;
+  int ret = uv_accept(server_handle, client_handle);
+
+  lua_pushinteger(L, ret);
   return 1;
 }
 
@@ -662,7 +649,7 @@ static int luaio_tcp_socket_shutdown(lua_State *L) {
 
 static void luaio_tcp_socket_onclose(uv_handle_t *handle) {
   luaio_tcp_socket_t *socket = container_of(handle, luaio_tcp_socket_t, handle);
-  lua_State *L = socket->thread;
+  lua_State *L = socket->current_thread;
 
   int onconnect_ref = socket->onconnect_ref;
   if (onconnect_ref != LUA_NOREF) {
@@ -678,10 +665,12 @@ static void luaio_tcp_socket_onclose(uv_handle_t *handle) {
 
   int thread_ref = socket->thread_ref;
   if (thread_ref != LUA_NOREF) {
-    luaL_unref(socket->thread, LUA_REGISTRYINDEX, thread_ref);
+    luaL_unref(L, LUA_REGISTRYINDEX, thread_ref);
     socket->thread = NULL;
     socket->thread_ref = LUA_NOREF;
   }
+
+  luaio_resume(L, 0);
 }
 
 /*socket:close()*/
@@ -694,7 +683,8 @@ static int luaio_tcp_socket_close(lua_State *L) {
   }
 
   uv_close(handle, luaio_tcp_socket_onclose);
-  return 0;
+
+  return lua_yield(L, 0);
 }
 
 /*tcp.is_ip(string)*/
@@ -718,6 +708,7 @@ int luaopen_tcp(lua_State *L) {
   luaL_Reg tcp_socket_mtlib[] = {
     { "bind", luaio_tcp_socket_bind },
     { "listen", luaio_tcp_socket_listen },
+    { "accept", luaio_tcp_socket_accept },
     { "connect", luaio_tcp_socket_connect },
     { "fd", luaio_tcp_socket_fd },
     { "set_read_buffer", luaio_tcp_socket_set_read_buffer },

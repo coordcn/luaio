@@ -13,6 +13,23 @@
 
 #include "luaio_config.h"
 
+#if LUA_VERSION_NUM < 502
+# define LUA_OK 0
+# define lua_rawlen lua_objlen
+# define luaL_newlib(L,l) (lua_newtable(L), luaL_register(L,NULL,l))
+# define luaL_setfuncs(L,l,n) (assert(n==0), luaL_register(L,NULL,l))
+# define lua_resume(L,F,n) lua_resume(L,n)
+
+# define lua_isinteger(L, index) \
+  ((lua_type(L, index) == LUA_TNUMBER) && \
+   (lua_tonumber(L, index) == lua_tointeger(L, index)))
+
+/* print an error message */
+#if !defined(lua_writestringerror)
+#define lua_writestringerror(s,p) (fprintf(stderr, (s), (p)), fflush(stderr))
+#endif
+#endif
+
 #include "luaio_list.h"
 #include "luaio_pmemory.h"
 #include "luaio_string.h"
@@ -96,7 +113,11 @@
 int luaio_cannot_change(lua_State *L);
 
 static inline void luaio_resume(lua_State *L, int nargs) {
+#if LUAIO_USE_LUAJIT
+  int ret = lua_resume(L, nargs);
+#else
   int ret = lua_resume(L, NULL, nargs);
+#endif
   if (ret > LUA_YIELD) {
     const char *error_string = lua_tostring(L, -1);
     luaL_error(L, "luaio_resume() error: \n%s\n", error_string ? error_string : "unknow");

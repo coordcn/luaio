@@ -2,6 +2,7 @@ local tcp_native = require('tcp_native')
 local fs_native = require('fs_native')
 local dns = require('dns')
 local process = require('process')
+local coro = require('coro')
 local Object = require('object')
 local Readable = require('readable')
 local ERRNO = require('errno')
@@ -360,23 +361,37 @@ function Server:init(port, onconnect, options)
   end
 
   -- one client connection one coroutine
-  function _onconnect(client_handle)
-    if self.closed or self.quit or (self.connections + 1) > self.max_connections then
-      client_handle:close()
+  function _onconnect(status)
+    if status ~= 0 then return end
+    if self.closed or self.quit or ((self.connections + 1) > self.max_connections) then
       return
     end
 
-    local socket, err = Socket:new(self.bufferSize)
-    if not socket then return end
+    local co = coroutine.create(function(sock)
+      local client_handle = tcp_native.new()
+      if not client_handle then return end
 
-    socket:_set_handle(client_handle, self)
-    socket:setTimeout(self.timeout)
-    socket:setNodelay(self.nodelay)
-    socket:setKeepalive(self.keepalive, self.keepidle)
+      local ret = handle:accept(client_handle)
+      if ret ~= 0 then
+        client_handle:close()
+        return
+      end
+      
+      local socket, err = Socket:new(self.bufferSize)
+      if not socket then return end
 
-    self.connections = self.connections + 1
-    onconnect(socket)
-    socket:close()
+      socket:_set_handle(client_handle, self)
+      socket:setTimeout(self.timeout)
+      socket:setNodelay(self.nodelay)
+      socket:setKeepalive(self.keepalive, self.keepidle)
+
+      self.connections = self.connections + 1
+
+      onconnect(socket)
+      socket:close()
+    end)
+
+    coroutine.resume(co)
   end
 
   err = handle:listen(_onconnect, options.backlog)

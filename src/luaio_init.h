@@ -7,10 +7,7 @@
 #ifndef LUAIO_INIT_H
 #define LUAIO_INIT_H
 
-#include "uv.h"
-#include "lua.h"
-#include "lauxlib.h"
-#include "luaio_config.h"
+#include "luaio.h"
 
 int luaio_init(lua_State *L, int argc, char *argv[]);
 

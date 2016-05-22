@@ -28,31 +28,26 @@ int luaio_buffer_discard(lua_State *L) {
   luaio_buffer_check_memory(L, diacard([n]));
   lua_Integer n = luaL_checkinteger(L, 2);
 
-  char *start;
-  if (n > 0) {
-    char *pos = buffer->read_pos + n;
-    if (pos < buffer->write_pos) {
-      buffer->read_pos = pos;
-    } else {
-      start = buffer->start;
-      buffer->read_pos = start;
-      buffer->write_pos = start;
-    }
-    return 0;
+  /*do nothing*/
+  if (n == 0) {
+    lua_pushinteger(L, n);
+    return 1;
   }
 
-  if (n == -1) {
-    start = buffer->start;
-    buffer->read_pos = start;
-    buffer->write_pos = start;
-    return 0;
+  char *read_pos = buffer->read_pos;
+  int rest_size = buffer->write_pos - read_pos;
+  if (n > 0 && n < rest_size) {
+    buffer->read_pos = read_pos + n;
+    lua_pushinteger(L, n);
+    return 1;
   }
 
-  if (n < -1) {
-    return luaL_argerror(L, 1, "buffer:discard([n]) error: n must be >= -1\n"); 
-  }
+  char *start = buffer->start;
+  buffer->read_pos = start;
+  buffer->write_pos = start;
 
-  return 0;
+  lua_pushinteger(L, rest_size);
+  return 1;
 }
 
 int luaio_buffer_gc(lua_State *L) {

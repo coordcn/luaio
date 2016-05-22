@@ -4,14 +4,18 @@
       'target_name': 'libluaio',
       'type': 'static_library',
       'dependencies': [
-        'deps/lua/lua.gyp:liblua',
+        #'deps/lua/lua.gyp:liblua',
         'deps/cares/cares.gyp:cares',
+        'deps/luajit/luajit.gyp:luajit',
+        'deps/luajit/luajit.gyp:libluajit',
         'deps/uv/uv.gyp:libuv',
         'deps/zlib/zlib.gyp:zlib',
         'deps/openssl/openssl.gyp:openssl',
       ],
       'export_dependent_settings': [
-        'deps/lua/lua.gyp:liblua',
+        #'deps/lua/lua.gyp:liblua',
+        'deps/luajit/luajit.gyp:luajit',
+        'deps/luajit/luajit.gyp:libluajit',
         'deps/cares/cares.gyp:cares',
         'deps/uv/uv.gyp:libuv',
         'deps/zlib/zlib.gyp:zlib',
@@ -54,6 +58,22 @@
         'src/luaio_util.c',
         'src/luaio_write_buffer.c',
       ],
+     'rules': [
+       {
+         'rule_name': 'jit_lua',
+         'extension': 'lua',
+         'outputs': [
+           '<(SHARED_INTERMEDIATE_DIR)/generated/<(RULE_INPUT_ROOT)_jit.c'
+         ],
+         'action': [
+           '<(PRODUCT_DIR)/luajit',
+           '-b', '-g', '<(RULE_INPUT_PATH)',
+           '<(SHARED_INTERMEDIATE_DIR)/generated/<(RULE_INPUT_ROOT)_jit.c',
+         ],
+         'process_outputs_as_sources': 1,
+         'message': 'luajit <(RULE_INPUT_PATH)'
+       }
+     ],
     },
     {
       'target_name': 'luaio',

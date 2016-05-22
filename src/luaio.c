@@ -9,6 +9,8 @@
 #include "luaio_init.h"
 #include "luaio_pmemory.h"
 
+/*fprintf(stderr, "malloc(size: %" PRId64 ") failed.\n", size);*/
+
 static char *bootstrap =
   "_G.system = require('system')\n"
 
@@ -27,7 +29,7 @@ static char *bootstrap =
   "local path = require('path')\n"
   "local Module = require('module')\n"
 
-  "local co = coroutine.create(function()\n"
+  "__LUAIO_BASE_COROUTINE__ = coroutine.create(function()\n"
   "  local file = path.resolve(__ARGV__[2])\n"
   "  local package_file = path.resolve(__ARGV__[3] or 'package.lua')\n"
 
@@ -46,13 +48,17 @@ static char *bootstrap =
   "  module:require(file)\n"
   "end)\n"
   
-  "coroutine.resume(co)\n"
+  "coroutine.resume(__LUAIO_BASE_COROUTINE__)\n"
 ;
+
+#if LUA_VERSION_NUM == 503
 
 static void *luaio_alloc (void *ud, void *ptr, size_t osize, size_t nsize) {
   (void)ud; (void)osize;  /* not used */
   return luaio_prealloc(ptr, nsize);
 }
+
+#endif
 
 static int luaio_panic (lua_State *L) {
   lua_writestringerror(LUAIO_COLOR_ERROR
@@ -66,7 +72,12 @@ int main(int argc, char *argv[]) {
   argv = uv_setup_args(argc, argv);
 
   luaio_pmemory_init();
+
+#if LUA_VERSION_NUM < 502
+  lua_State *L = luaL_newstate();
+#else
   lua_State *L = lua_newstate(luaio_alloc, NULL);
+#endif
   if (L == NULL) {
     fprintf(stderr,
             LUAIO_COLOR_ERROR

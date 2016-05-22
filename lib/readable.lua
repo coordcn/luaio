@@ -28,13 +28,38 @@ function Readable:bytesRead()
   return self.read_bytes
 end
 
--- @example: instance:discard([n])
--- @param: n {integer} if n == nil read the rest data in the buffer
+-- @example: local bytes = instance:discard([n])
+-- @param: n {integer} if n == nil discard the rest data in the buffer
 function Readable:discard(n)
   if self.closed then error('closed, unavaliable') end
-  if self.read_bytes == 0 then return end
-  if n == nil then n = -1 end
-  self.read_buffer:discard(n)
+  if n == 0 then return 0 end
+
+  local ret
+  if self.read_bytes == 0 then
+    ret = self:_read()
+    if ret < 0 then return ret end
+    self.read_bytes = self.read_bytes + ret
+  end
+  
+  local read_buffer = self.read_buffer
+
+  if n == nil then 
+    return read_buffer:discard(-1)
+  end
+
+  local err = read_buffer:discard(n)
+  if err == n then return n end
+
+  local num = n - err
+  while num > 0 do
+    ret = self:_read()
+    if ret < 0 then return ret end
+    self.read_bytes = self.read_bytes + ret
+
+    err = read_buffer:discard(num)
+    if err == num then return n end
+    num = num - err
+  end
 end
 
 -- @example: local data, err = instance:read([n])
@@ -43,6 +68,7 @@ end
 -- @return: err {integer}
 function Readable:read(n)
   if self.closed then error('closed, unavaliable') end
+  if n == 0 then return nil, 0 end
 
   local ret
   if self.read_bytes == 0 then

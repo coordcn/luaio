@@ -116,6 +116,7 @@ function process.fork(file, options)
   end
 
   table.insert(args, 1, file)
+  table.insert(args, 1, execpath)
 
   local forever = options.forever
   if forever and type(forever) ~= 'boolean' then
@@ -214,10 +215,10 @@ function process.exec(command)
   local file, args;
   if system.type == 'Windows' then
     file = 'cmd.exe'
-    args = {'/s', '/c', '"' .. command .. '"'}
+    args = {'cmd.exe', '/s', '/c', '"' .. command .. '"'}
   else
     file = '/bin/sh'
-    args = {'/c', command}
+    args = {'/bin/sh', '/c', command}
   end
  
   return process_native.spawn({file = file, args = args})
