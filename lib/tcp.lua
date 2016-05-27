@@ -27,27 +27,7 @@ function Socket:init(size)
   return 0
 end
 
--- @example: instance:_set_handle(handle, server)
-function Socket:_set_handle(handle, server)
-  handle:set_read_buffer(self.read_buffer)
-  handle:set_write_callback(function(status)
-    if status <  0 then
-      self.errno = status
-      self:close()
-    end
-
-    self.writing = self.writing - 1
-    if self.writing == 0 then
-      if self.closing then self.close() end
-    end
-  end)
-
-  self.fd = handle:fd()
-  self.handle = handle
-  self.server = server
-end
-
-function Socket:connect(port, host)
+function Socket:connect(port, host, timeout)
   if self.closed then error('closed, unavaliable') end
   if self.closing then error('closing, unavaliable') end
 
@@ -58,8 +38,12 @@ function Socket:connect(port, host)
   local handle = tcp_native.new()
   if not handle then return ERRNO.UV_ENOMEM end
 
+  if timeout then
+    handle:set_timeout(timeout)
+  end
+
   local family = tcp_native.is_ip(host)
-  if family then
+  if family ~= 0 then
     err = handle:connect(port, host)
     if err < 0 then
       handle:close()
@@ -90,7 +74,10 @@ function Socket:connect(port, host)
     end
   end
 
-  self._set_handle(handle, nil)
+  handle:set_read_buffer(self.read_buffer)
+  self.fd = handle:fd()
+  self.handle = handle
+
   return 0
 end
 
@@ -110,6 +97,7 @@ end
 
 -- @example: local err = instance:write(data)
 -- @param: data {string|buffer|table[array(string|buffer)]}
+-- @param: bytes {integer} written bytes
 -- @return: err {integer}
 function Socket:write(data)
   if self.closed then error('closed, unavaliable') end
@@ -128,10 +116,35 @@ function Socket:write(data)
     self.write_bytes = self.write_bytes + bytes
   end
 
-  if err == 1 then err = 0 end
   self.errno = err
 
-  return err
+  return bytes, err
+end
+
+-- @example: local err = instance:writeAsync(data)
+-- @param: data {string|buffer|table[array(string|buffer)]}
+-- @param: bytes {integer} written bytes
+-- @return: err {integer}
+function Socket:writeAsync(data)
+  if self.closed then error('closed, unavaliable') end
+  if self.closing then error('closing, unavaliable') end
+
+  if not self.handle then
+    error('not connected, please call socket:connect(port, host) first')
+  end
+
+  local bytes, err = self.handle:write_async(data)
+  if err == 0 then
+    self.writing = self.writing + 1
+  end
+
+  if bytes > 0 then
+    self.write_bytes = self.write_bytes + bytes
+  end
+
+  self.errno = err
+
+  return bytes, err
 end
 
 -- @example: bytes = instance:bytesWritten()
@@ -367,7 +380,7 @@ function Server:init(port, onconnect, options)
       return
     end
 
-    local co = coroutine.create(function(sock)
+    local co = coro.create(function(sock)
       local client_handle = tcp_native.new()
       if not client_handle then return end
 
@@ -380,7 +393,10 @@ function Server:init(port, onconnect, options)
       local socket, err = Socket:new(self.bufferSize)
       if not socket then return end
 
-      socket:_set_handle(client_handle, self)
+      client_handle:set_read_buffer(socket.read_buffer)
+      socket.fd = client_handle:fd()
+      socket.handle = client_handle
+      socket.server = self
       socket:setTimeout(self.timeout)
       socket:setNodelay(self.nodelay)
       socket:setKeepalive(self.keepalive, self.keepidle)
@@ -443,11 +459,22 @@ tcp.createServer = function(port, onconnect, options)
   return Server:new(port, onconnect, options)
 end
 
-tcp.connect = function(port, host, buffer_size)
-  local socket, err = Socket:new(buffer_size)
+-- @example: local sokcet, err = tcp.connect(port, host, options)
+-- @param: port {integer}
+-- @param: host {string} hostname or IP
+-- @param: options {table}
+--    options = {
+--      timeout = {integer}
+--      buffer_size = {integer}
+--    }
+-- @return: socket {table}
+-- @return: err {integer}
+tcp.connect = function(port, host, options)
+  options = options or {}
+  local socket, err = Socket:new(options.buffer_size)
   if err < 0 then return nil, err end
 
-  err = socket:connect(port, host)
+  err = socket:connect(port, host, options.timeout)
   if err < 0 then
     socket:close()
     return nil, err

@@ -19,20 +19,21 @@ typedef struct {
   uv_tcp_t        handle;
   int             thread_ref;
   int             onconnect_ref;
-  int             write_callback_ref;
 } luaio_tcp_socket_t;
 
 typedef struct {
   lua_State       *current_thread;
   uv_timer_t      *timer;
   uv_connect_t    req;
+  int             timed_out;
 } luaio_tcp_connect_req_t;
 
 typedef struct {
   lua_State       *current_thread;
   uv_timer_t      *timer;
+  size_t          bytes;
   int             write_data_ref;
-  int             write_callback_ref;
+  int             timed_out;
   uv_write_t      req;
 } luaio_tcp_write_req_t;
 
@@ -72,7 +73,6 @@ static int luaio_tcp_socket_new(lua_State *L) {
   }
 
   socket->onconnect_ref = LUA_NOREF;
-  socket->write_callback_ref = LUA_NOREF;
 
   lua_pushlightuserdata(L, &luaio_tcp_socket_metatable_key);
   lua_rawget(L, LUA_REGISTRYINDEX);
@@ -114,7 +114,7 @@ static int luaio_tcp_socket_bind(lua_State *L) {
 
 static void luaio_tcp_server_onconnect(uv_stream_t *handle, int status) {
   luaio_tcp_socket_t* server = container_of(handle, luaio_tcp_socket_t, handle);
-  lua_State *L = server->current_thread;
+  lua_State *L = luaio_get_main_thread();
 
   /*onconnect*/
   lua_rawgeti(L, LUA_REGISTRYINDEX, server->onconnect_ref);
@@ -158,11 +158,12 @@ static int luaio_tcp_socket_accept(lua_State *L) {
 }
 
 static void luaio_tcp_socket_connect_timeout(uv_timer_t *handle) {
-  luaio_tcp_connect_req_t *luaio_req = container_of(handle, luaio_tcp_connect_req_t, timer);
+  luaio_tcp_connect_req_t *luaio_req = handle->data;
   lua_State *L = luaio_req->current_thread;
 
   luaio_timer_free(handle);
-  luaio_pfree(luaio_req);
+  luaio_req->timer = NULL;
+  luaio_req->timed_out = 1;
 
   lua_pushinteger(L, UV_ETIMEDOUT);
   luaio_resume(L, 1);
@@ -178,7 +179,10 @@ static void luaio_tcp_socket_onconnect(uv_connect_t *req, int status) {
     luaio_timer_free(timer);
   }
 
+  int timed_out = luaio_req->timed_out;
   luaio_pfree(luaio_req);
+  if (timed_out) return;
+
   lua_pushinteger(L, status);
   luaio_resume(L, 1);
 }
@@ -228,6 +232,10 @@ static int luaio_tcp_socket_connect(lua_State *L) {
     luaio_pfree(luaio_req);
     lua_pushinteger(L, err);
     return 1;
+  }
+
+  if (timer != NULL) {
+    timer->data = luaio_req;
   }
 
   luaio_req->current_thread = L;
@@ -335,6 +343,10 @@ static void luaio_tcp_socket_onread(uv_stream_t *handle,
 static int luaio_tcp_socket_read(lua_State *L) {
   luaio_tcp_check_socket(L, read(buffer));
 
+  if (socket->read_buffer == NULL) {
+    return luaL_error(L, "socket:read() error: no read buffer, please set a read buffer.\n");
+  }
+
   uint64_t timeout = socket->timeout;
   uv_timer_t *timer = NULL;
   if (timeout != 0) {
@@ -365,20 +377,8 @@ static int luaio_tcp_socket_read(lua_State *L) {
 
   socket->timer = timer;
   socket->current_thread = L;
+
   return lua_yield(L, 0);
-}
-
-/*socket:set_write_callback(callback)*/
-static int luaio_tcp_socket_set_write_callback(lua_State *L) {
-  luaio_tcp_check_socket(L, read(buffer));
-
-  if (lua_type(L, 2) != LUA_TFUNCTION) {
-    return luaL_argerror(L, 2, "socket:setWriteCallback(callback) error: callback must be [function]\n"); 
-  }
-  lua_pushvalue(L, 2);
-  socket->write_callback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
-  
-  return 0;
 }
 
 static int luaio_tcp_socket_try_write(uv_stream_t *handle, 
@@ -417,19 +417,21 @@ static int luaio_tcp_socket_try_write(uv_stream_t *handle,
 }
 
 static void luaio_tcp_socket_write_timeout(uv_timer_t *handle) {
-  luaio_tcp_write_req_t *luaio_req = container_of(handle, luaio_tcp_write_req_t, timer);
+  luaio_tcp_write_req_t *luaio_req = handle->data;
   lua_State *L = luaio_req->current_thread;
-  
-  luaio_timer_free(handle);
-  luaL_unref(L, LUA_REGISTRYINDEX, luaio_req->write_data_ref);
-  int write_callback_ref = luaio_req->write_callback_ref;
-  luaio_pfree(luaio_req);
-
-  if (write_callback_ref != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, write_callback_ref);
-    lua_pushinteger(L, UV_ETIMEDOUT);
-    luaio_pcall(L, 1);
+ 
+  int write_data_ref = luaio_req->write_data_ref;
+  if (write_data_ref != LUA_NOREF) {
+    luaL_unref(L, LUA_REGISTRYINDEX, write_data_ref);
   }
+
+  luaio_timer_free(handle);
+  luaio_req->timer = NULL;
+  luaio_req->timed_out = 1;
+
+  lua_pushinteger(L, 0);
+  lua_pushinteger(L, UV_ETIMEDOUT);
+  luaio_resume(L, 2);
 }
 
 static void luaio_tcp_socket_after_write(uv_write_t *req, int status) {
@@ -442,15 +444,24 @@ static void luaio_tcp_socket_after_write(uv_write_t *req, int status) {
     luaio_timer_free(timer);
   }
 
-  luaL_unref(L, LUA_REGISTRYINDEX, luaio_req->write_data_ref);
-  int write_callback_ref = luaio_req->write_callback_ref;
-  luaio_pfree(luaio_req);
-
-  if (write_callback_ref != LUA_NOREF) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, write_callback_ref);
-    lua_pushinteger(L, status);
-    luaio_pcall(L, 1);
+  int write_data_ref = luaio_req->write_data_ref;
+  if (write_data_ref != LUA_NOREF) {
+    luaL_unref(L, LUA_REGISTRYINDEX, write_data_ref);
   }
+
+  size_t bytes = luaio_req->bytes;
+  int timed_out = luaio_req->timed_out;
+  luaio_pfree(luaio_req);
+  if (timed_out) return;
+
+  if (status != 0) {
+    lua_pushinteger(L, 0);
+  } else {
+    lua_pushinteger(L, bytes);
+  }
+
+  lua_pushinteger(L, status);
+  luaio_resume(L, 2);
 }
 
 /*local bytes, err = socket:write(data)*/
@@ -473,11 +484,11 @@ static int luaio_tcp_socket_write(lua_State *L) {
     return 2;
   }
 
+  /*uv_try_write send all data*/
   if (vcount == 0) {
     if (tmp != NULL) luaio_pfree(tmp);
     lua_pushinteger(L, written);
-    /*uv_try_write send all data*/
-    lua_pushinteger(L, 1);
+    lua_pushinteger(L, 0);
     return 2;
   }
 
@@ -533,14 +544,142 @@ static int luaio_tcp_socket_write(lua_State *L) {
   lua_pushvalue(L, 2);
   luaio_req->write_data_ref = luaL_ref(L, LUA_REGISTRYINDEX);
   luaio_req->current_thread = L;
-  luaio_req->write_callback_ref = socket->write_callback_ref;
   luaio_req->timer = timer;
+  luaio_req->bytes = bytes;
+
+  if (timer != NULL) {
+    timer->data = luaio_req;
+  }
 
   if (tmp != NULL) luaio_pfree(tmp);
+
+  return lua_yield(L, 0);
+}
+
+static void luaio_tcp_socket_write_async_timeout(uv_timer_t *handle) {
+  luaio_tcp_write_req_t *luaio_req = handle->data;
+  lua_State *L = luaio_get_main_thread();
+ 
+  int write_data_ref = luaio_req->write_data_ref;
+  if (write_data_ref != LUA_NOREF) {
+    luaL_unref(L, LUA_REGISTRYINDEX, write_data_ref);
+  }
+
+  luaio_timer_free(handle);
+  luaio_req->timer = NULL;
+}
+
+static void luaio_tcp_socket_after_write_async(uv_write_t *req, int status) {
+  luaio_tcp_write_req_t *luaio_req = container_of(req, luaio_tcp_write_req_t, req);
+  lua_State* L = luaio_get_main_thread();
+ 
+  uv_timer_t *timer = luaio_req->timer;
+  if (timer != NULL) {
+    uv_timer_stop(timer);
+    luaio_timer_free(timer);
+  }
+
+  int write_data_ref = luaio_req->write_data_ref;
+  if (write_data_ref != LUA_NOREF) {
+    luaL_unref(L, LUA_REGISTRYINDEX, write_data_ref);
+  }
+
+  luaio_pfree(luaio_req);
+}
+
+/*local bytes, err = socket:write_async(data)*/
+static int luaio_tcp_socket_write_async(lua_State *L) {
+  luaio_tcp_check_socket(L, write(data));
+  /*common.h*/
+  luaio_check_data(L, 2, socket:write(data));
+
+  size_t written = 0;
+  size_t vcount = count;
+  uv_stream_t *stream_handle = (uv_stream_t*)(&socket->handle);
+  int err = luaio_tcp_socket_try_write(stream_handle, 
+                                       &bufs, 
+                                       &vcount, 
+                                       &written);
+  if (err) {
+    if (tmp != NULL) luaio_pfree(tmp);
+    lua_pushinteger(L, 0);
+    lua_pushinteger(L, err);
+    return 2;
+  }
+
+  /*uv_try_write send all data*/
+  if (vcount == 0) {
+    if (tmp != NULL) luaio_pfree(tmp);
+    lua_pushinteger(L, written);
+    lua_pushinteger(L, 0);
+    return 2;
+  }
+
+  uint64_t timeout = socket->timeout;
+  uv_timer_t *timer = NULL;
+  if (timeout != 0) {
+    timer = luaio_timer_alloc();
+    if (timer == NULL) {
+      if (tmp != NULL) luaio_pfree(tmp);
+      lua_pushinteger(L, written);
+      lua_pushinteger(L, UV_ENOMEM);
+      return 2;
+    }
+
+    uv_timer_start(timer, 
+                   luaio_tcp_socket_write_async_timeout, 
+                   timeout, 
+                   0);
+  }
+
+  luaio_tcp_write_req_t *luaio_req = luaio_palloc(sizeof(luaio_tcp_write_req_t));
+  if (luaio_req == NULL) {
+    if (tmp != NULL) luaio_pfree(tmp);
+    if (timer != NULL) {
+      uv_timer_stop(timer);
+      luaio_timer_free(timer);
+    }
+
+    lua_pushinteger(L, written);
+    lua_pushinteger(L, UV_ENOMEM);
+    return 2;
+  }
+
+  err = uv_write2(&luaio_req->req, 
+                  stream_handle, 
+                  bufs, 
+                  vcount, 
+                  NULL, 
+                  luaio_tcp_socket_after_write_async);
+  if (err) {
+    if (tmp != NULL) luaio_pfree(tmp);
+    if (timer != NULL) {
+      uv_timer_stop(timer);
+      luaio_timer_free(timer);
+    }
+
+    luaio_pfree(luaio_req);
+    lua_pushinteger(L, written);
+    lua_pushinteger(L, err);
+    return 2;
+  }
+
+  lua_pushvalue(L, 2);
+  luaio_req->write_data_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  luaio_req->current_thread = NULL;
+  luaio_req->timer = timer;
+
+  if (timer != NULL) {
+    timer->data = luaio_req;
+  }
+
+  if (tmp != NULL) luaio_pfree(tmp);
+
   lua_pushinteger(L, bytes);
-  lua_pushinteger(L, err);
+  lua_pushinteger(L, 0);
   return 2;
 }
+
 
 /*local addr, err = socket:local_address()*/
 static int luaio_tcp_socket_local_address(lua_State *L) {
@@ -657,12 +796,6 @@ static void luaio_tcp_socket_onclose(uv_handle_t *handle) {
     socket->onconnect_ref = LUA_NOREF;
   }
 
-  int write_callback_ref = socket->write_callback_ref;
-  if (write_callback_ref != LUA_NOREF) {
-    luaL_unref(L, LUA_REGISTRYINDEX, write_callback_ref);
-    socket->write_callback_ref = LUA_NOREF;
-  }
-
   int thread_ref = socket->thread_ref;
   if (thread_ref != LUA_NOREF) {
     luaL_unref(L, LUA_REGISTRYINDEX, thread_ref);
@@ -713,8 +846,10 @@ int luaopen_tcp(lua_State *L) {
     { "fd", luaio_tcp_socket_fd },
     { "set_read_buffer", luaio_tcp_socket_set_read_buffer },
     { "read", luaio_tcp_socket_read },
-    { "set_write_callback", luaio_tcp_socket_set_write_callback },
+    /*yield from current thread, resume to current thread withe success, error, timeout message*/
     { "write", luaio_tcp_socket_write },
+    /*not yeild from current thread, ignore success, error, timeout message*/
+    { "write_async", luaio_tcp_socket_write_async },
     { "local_address", luaio_tcp_socket_local_address },
     { "remote_address", luaio_tcp_socket_remote_address },
     { "set_timeout", luaio_tcp_socket_set_timeout },
