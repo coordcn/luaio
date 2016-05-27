@@ -92,6 +92,7 @@ function Socket:_read()
 
   local err =  self.handle:read()
   self.errno = err
+
   return err
 end
 

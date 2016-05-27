@@ -7,7 +7,7 @@ local content = '为生民立命，为天地立心，为往圣继绝学，为万
   'HTTP/1.1 200 OK\r\n',
   'Server: LINKS\r\n',
   'Content-Type: plain\r\n',
-  'Connection: close\r\n',
+ -- 'Connection: close\r\n',
   'Content-Length: ' .. #content .. '\r\n',
   '\r\n',
   content

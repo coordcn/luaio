@@ -12,15 +12,17 @@ local request = {
 'Connection: keep-alive\r\n\r\n'
 }
 
+print(process.execpath)
 --co = coroutine.create(function()
-  local socket, err = tcp.connect(80, 'www.lagou.com', {timeout = 300})
+  local socket, err = tcp.connect(80, 'www.lagou.com', {timeout = 30000})
   print(ERRNO.parse(err))
 
   local stream, err = fs.createWriteStream('t.txt')
 
-    err = socket:write(request)
+    bytes, err = socket:write(request)
+    print(bytes)
     if err < 0 then
-      print(ERRNO.parse(err))
+      print('write: ' .. ERRNO.parse(err))
       return
     end
 
@@ -28,7 +30,7 @@ local request = {
     local data
     data, err = socket:read()
     if err < 0 then
-      print(ERRNO.parse(err))
+      print('read: ' .. ERRNO.parse(err))
       break
     end
     stream:write(data)
