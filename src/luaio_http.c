@@ -38,11 +38,12 @@ static int luaio_http_new_parser(lua_State *L) {
   return 1;
 }
 
-/* @example: local status, http_major, http_minor, error = http_parser:parse_status_line(read_buffer)
+/* @example: local status_code, http_major, http_minor, status, error = http_parser:parse_status_line(read_buffer)
  * @param: read_buffer {userdate(ReadBuffer)}
- * @return: status {integer}
+ * @return: status_code {integer}
  * @return: http_major {integer}
  * @return: http_minor {integer}
+ * @return: status {string}
  * @return: error {integer} 
  */
 static int luaio_http_parser_parse_status_line(lua_State *L) {
@@ -60,6 +61,13 @@ static int luaio_http_parser_parse_status_line(lua_State *L) {
     lua_pushinteger(L, parser->status_code);
     lua_pushinteger(L, parser->http_major);
     lua_pushinteger(L, parser->http_minor);
+
+    if (parser->status.base != NULL) {
+      lua_pushlstring(L, parser->status.base, parser->status.len);
+    } else {
+      lua_pushnil(L);
+    }
+
     lua_pushinteger(L, ret);
 
     if (last_pos == write_pos) {
@@ -71,7 +79,7 @@ static int luaio_http_parser_parse_status_line(lua_State *L) {
     }
     parser->last_pos = NULL;
 
-    return 4;
+    return 5;
   } 
   
   if (ret == HTTP_AGAIN && write_pos == buffer->end) {
@@ -85,8 +93,9 @@ static int luaio_http_parser_parse_status_line(lua_State *L) {
       lua_pushnil(L);
       lua_pushnil(L);
       lua_pushnil(L);
+      lua_pushnil(L);
       lua_pushinteger(L, HTTP_ERROR);
-      return 4;
+      return 5;
     }
 
     /* start  read_pos   write_pos == end
@@ -105,8 +114,9 @@ static int luaio_http_parser_parse_status_line(lua_State *L) {
   lua_pushnil(L);
   lua_pushnil(L);
   lua_pushnil(L);
+  lua_pushnil(L);
   lua_pushinteger(L, ret);
-  return 4;
+  return 5;
 }
 
 /* @example: local method, http_major, http_minor, url, error = http_parser:parse_request_line(read_buffer)
