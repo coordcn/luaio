@@ -17,6 +17,25 @@ http server base on lua + libuv
 
 ##第一阶段工作：http1.1 预计三个月完成
 
+## TODO
+- bin2hex
+- hex2bin
+- base64.encode
+- base64.decode
+- base64.encodeURL
+- base64.decodeURL
+- crypto.hash
+- crypto.hmac
+- JSON.parse
+- JSON.stringfy
+- querystring
+- escape
+- unescape
+- encodeURI
+- decodeURI
+- encodeURIComponent
+- decodeURIComponent
+
 ###模块
 ####system
 

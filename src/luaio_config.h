@@ -218,7 +218,8 @@ static inline void *luaio_memalign(size_t align, size_t size) {
 #define luaio_memchr                memchr
 #define luaio_memzero(p, size)      memset(p, 0, size)
 
-#define LUAIO_USE_PMEMORY         1
-#define LUAIO_MAX_FREE_TIMERS     1024
+#define LUAIO_OPENSSL_NO_ENGINE     0
+#define LUAIO_USE_PMEMORY           1
+#define LUAIO_MAX_FREE_TIMERS       1024
 
 #endif /* LUAIO_CONFIG_H */

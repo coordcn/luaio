@@ -1587,7 +1587,7 @@ function TEST_RES(name, show, data, buffer_size, res, vheaders, vcookies)
   if res then
     local status, major, minor, err
     while true do
-      status, major, minor, err = parser:parse_status_line(buffer)
+      status_code, major, minor, status, err = parser:parse_status_line(buffer)
 
       if err >= 0 or err == http_native.ERROR then break end
 
@@ -1598,12 +1598,16 @@ function TEST_RES(name, show, data, buffer_size, res, vheaders, vcookies)
 
     if show then 
       print('parse_response error: ' .. err)
-      print('status: ' .. status)
+      print('status_code: ' .. status_code)
+      if status ~= nil then
+        print('status: ' .. status)
+      end
       print('major: ' .. major)
       print('minor: ' .. minor)
     end
 
     assert(err == http_native.OK)
+    assert(status_code == res.status_code)
     assert(status == res.status)
     assert(major == res.major)
     assert(minor == res.minor)
@@ -1664,7 +1668,8 @@ function GOOGLE_301()
   local res = {
     should_keep_alive = true,
     message_complete_on_eof = false,
-    status = 301,
+    status_code = 301,
+    status = 'Moved Permanently',
     major = 1,
     minor = 1,
   }
@@ -1712,7 +1717,8 @@ function NO_CONTENT_LENGTH_RESPONSE()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = true,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -1737,7 +1743,8 @@ function NO_HEADERS_NO_BODY_404()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = true,
-    status = 404,
+    status_code = 404,
+    status = 'Not Found',
     major = 1,
     minor = 1,
   }
@@ -1757,7 +1764,8 @@ function NO_REASON_PHRASE()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = true,
-    status = 301,
+    status_code = 301,
+    status = nil,
     major = 1,
     minor = 1,
   }
@@ -1790,7 +1798,8 @@ function TRAILING_SPACE_ON_CHUNKED_BODY()
   local res = {
     should_keep_alive = true,
     message_complete_on_eof = false,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -1818,7 +1827,8 @@ function NO_CARRIAGE_RET()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = true,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -1848,7 +1858,8 @@ function PROXY_CONNECTION()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = false,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -1878,7 +1889,8 @@ function UNDERSTORE_HEADER_KEY()
   local res = {
     should_keep_alive = true,
     message_complete_on_eof = false,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -1915,7 +1927,8 @@ function BONJOUR_MADAME_FR()
   local res = {
     should_keep_alive = true,
     message_complete_on_eof = false,
-    status = 301,
+    status_code = 301,
+    status = 'Moved Permanently',
     major = 1,
     minor = 0,
   }
@@ -1959,7 +1972,8 @@ function RES_FIELD_UNDERSCORE()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = false,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -1996,7 +2010,8 @@ function NON_ASCII_IN_STATUS_LINE()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = false,
-    status = 500,
+    status_code = 500,
+    status = 'Oriëntatieprobleem',
     major = 1,
     minor = 1,
   }
@@ -2022,7 +2037,8 @@ function HTTP_VERSION_0_9()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = true,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 0,
     minor = 9,
   }
@@ -2050,7 +2066,8 @@ function NO_CONTENT_LENGTH_NO_TRANSFER_ENCODING_RESPONSE()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = true,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -2076,7 +2093,8 @@ function NO_BODY_HTTP10_KA_200()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = true,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 0,
   }
@@ -2102,7 +2120,8 @@ function NO_BODY_HTTP10_KA_204()
   local res = {
     should_keep_alive = true,
     message_complete_on_eof = false,
-    status = 204,
+    status_code = 204,
+    status = 'No content',
     major = 1,
     minor = 0,
   }
@@ -2127,7 +2146,8 @@ function NO_BODY_HTTP11_KA_200()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = true,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -2150,7 +2170,8 @@ function NO_BODY_HTTP11_KA_204()
   local res = {
     should_keep_alive = true,
     message_complete_on_eof = false,
-    status = 204,
+    status_code = 204,
+    status = 'No content',
     major = 1,
     minor = 1,
   }
@@ -2174,7 +2195,8 @@ function NO_BODY_HTTP11_NOKA_204()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = false,
-    status = 204,
+    status_code = 204,
+    status = 'No content',
     major = 1,
     minor = 1,
   }
@@ -2202,7 +2224,8 @@ function NO_BODY_HTTP11_KA_CHUNKED_200()
   local res = {
     should_keep_alive = true,
     message_complete_on_eof = false,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -2236,7 +2259,8 @@ function SPACE_IN_FIELD_RES()
   local res = {
     should_keep_alive = true,
     message_complete_on_eof = false,
-    status = 200,
+    status_code = 200,
+    status = 'OK',
     major = 1,
     minor = 1,
   }
@@ -2279,7 +2303,8 @@ function AMAZON_COM()
   local res = {
     should_keep_alive = true,
     message_complete_on_eof = false,
-    status = 301,
+    status_code = 301,
+    status = 'MovedPermanently',
     major = 1,
     minor = 1,
   }
@@ -2311,7 +2336,8 @@ function EMPTY_REASON_PHRASE_AFTER_SPACE()
   local res = {
     should_keep_alive = false,
     message_complete_on_eof = true,
-    status = 200,
+    status_code = 200,
+    status = nil,
     major = 1,
     minor = 1,
   }

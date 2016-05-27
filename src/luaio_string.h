@@ -50,4 +50,7 @@ int luaio_strcaseeq_32(const char *s1, const char *s2, size_t n);
 int luaio_streq_64(const char *s1, const char *s2, size_t n);
 int luaio_strcaseeq_64(const char *s1, const char *s2, size_t n);
 
+size_t luaio_bin2hex(char *dst, size_t dlen, const char *src, size_t slen);
+size_t luaio_hex2bin(char *dst, size_t dlen, const char *src, size_t slen);
+
 #endif /* LUAIO_STRING_H */
