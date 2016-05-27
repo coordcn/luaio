@@ -1,0 +1,70 @@
+   version = version or self.deps[name]
+  --print(version)
+  if version then
+    -- redis@0.1.0
+    local module_name = name .. '@' .. version
+    if module_name and modules_cache[module_name] then
+      return modules_cache[module_name], nil
+    end
+    
+    local module_version_dir = path.join(modules_dir, name, version)
+    local stat, err = fs.stat(module_version_dir)
+    if err < 0 then
+      error('fs.stat(' .. module_version_dir .. '): ' .. ERRNO.parser(err))
+    end
+
+    if stat.type ~= fs.DIR then
+      error('require(' .. name .. ') error: ' .. module_version_dir .. 'is not a directory')
+    end
+
+    local module_version_package = path.join(module_version_dir, 'package.lua')
+  print(module_version_package)
+    local package_fn = assert(loadfile(module_version_package))
+    local package = package_fn()
+    if not package then
+      error('no package')
+    end
+
+    local main = package.main
+  print(main)
+    if not main then
+      error('no package.main')
+    end
+
+    local file = path.join(module_version_dir, main) .. lua_ext
+    local module = Module:new(file, package.deps or self.deps)
+    local env = {
+      module = module,
+      require = function(name, version)
+        if not name or type(name) ~= 'string' then
+          error('require(name) error: name must be string')
+        end
+
+        local ret, errstr = module:require(name, version)
+        print(errstr)
+        if ret then return ret end
+        assert(errstr)
+      end
+    }
+    local fn = assert(loadfile(file, 'bt', setmetatable(env, { __index = _G })))
+    local ret = fn()
+    if ret then return ret end
+  else
+    local module_dir = path.join(modules_dir, name)
+    local stat, err = fs.stat(module_dir)
+    if err < 0 then
+      -- get from net
+      error('fs.stat(' .. module_dir .. '): ' .. ERRNO.parse(err))
+    end
+
+    if stat.type ~= fs.DIR then
+      error('require(' .. name .. ') error: ' .. module_dir .. ' is not a directory')
+    end
+
+    local files
+    files, err = fs.readdir(module_dir) 
+    if err < 0 then
+      error('fs.readdir(' .. module_dir .. ') error: ' .. ERRNO.parser(err))
+    end
+
+  end
