@@ -129,6 +129,7 @@ typedef struct {
   http_url_t  url;
   http_buf_t  field;
   http_buf_t  value;
+  http_buf_t  status;
   char        *last_pos;
   uint32_t    nread;
   uint16_t    http_major;

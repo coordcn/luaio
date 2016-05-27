@@ -445,18 +445,21 @@ int http_parse_status_line(http_parser_t *parser, char *data, char *last) {
           UPDATE_STATE(s_start);
           RETURN(HTTP_OK);
         }
-
+        
+        parser->status.base = p;
         UPDATE_STATE(s_res_status);
         break;
       }
 
       case s_res_status:
         if (ch == CR) {
+          parser->status.len = p - parser->status.base;
           UPDATE_STATE(s_res_line_almost_done);
           break;
         }
 
         if (ch == LF) {
+          parser->status.len = p - parser->status.base;
           parser->nread = 0;
           UPDATE_STATE(s_start);
           RETURN(HTTP_OK);
