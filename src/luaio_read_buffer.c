@@ -80,8 +80,8 @@ static int luaio_buffer_read(lua_State *L) {
       buffer->read_pos = start;
       buffer->write_pos = start;
     } else if (rest_size == 0) {
-      lua_pushliteral(L, "");
-      lua_pushinteger(L, 0);
+      lua_pushnil(L);
+      lua_pushinteger(L, LUAIO_EAGAIN);
     }
 
     return 2;
