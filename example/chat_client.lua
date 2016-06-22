@@ -17,9 +17,9 @@ print(process.execpath)
   local socket, err = tcp.connect(80, 'www.lagou.com', {timeout = 30000})
   print(ERRNO.parse(err))
 
-  local stream, err = fs.createWriteStream('t.txt')
+  --local stream, err = fs.createWriteStream('t.txt')
 
-    bytes, err = socket:write(request)
+    bytes, err = socket:writeAsync(request)
     print(bytes)
     if err < 0 then
       print('write: ' .. ERRNO.parse(err))
@@ -33,9 +33,9 @@ print(process.execpath)
       print('read: ' .. ERRNO.parse(err))
       break
     end
-    stream:write(data)
+    --stream:write(data)
   end
 
-  stream:close()
+  --stream:close()
 --end)
 --coroutine.resume(co)
