@@ -42,7 +42,10 @@ function Socket:connect(port, host, timeout)
     handle:set_timeout(timeout)
   end
 
+  if not host then host = '127.0.0.1' end
   local family = tcp_native.is_ip(host)
+
+  local err
   if family ~= 0 then
     err = handle:connect(port, host)
     if err < 0 then
@@ -109,9 +112,6 @@ function Socket:write(data)
   end
 
   local bytes, err = self.handle:write(data)
-  if err == 0 then
-    self.writing = self.writing + 1
-  end
 
   if bytes > 0 then
     self.write_bytes = self.write_bytes + bytes
@@ -135,9 +135,6 @@ function Socket:writeAsync(data)
   end
 
   local bytes, err = self.handle:write_async(data)
-  if err == 0 then
-    self.writing = self.writing + 1
-  end
 
   if bytes > 0 then
     self.write_bytes = self.write_bytes + bytes
@@ -264,13 +261,6 @@ function Socket:close()
     return
   end
 
-  -- Socket:write(data) is async function base on callback
-  -- normal close should wait for all callback called
-  if self.writing > 0 then
-    self.closing = true
-    return
-  end
-
   self:_close()
 end
 
@@ -347,7 +337,7 @@ function Server:init(port, onconnect, options)
   local handle_ = nil
   local err = 0
 
-  local handle_ = tcp_native.new()
+  local handle_ = tcp_native.new(true)
   if not handle_ then return ERRNO.UV_ENOMEM end
 
   if not options.host then
@@ -375,40 +365,29 @@ function Server:init(port, onconnect, options)
   end
 
   -- one client connection one coroutine
-  function _onconnect(status)
-    if status ~= 0 then return end
+  function _onconnect(client_handle)
     if self.closed or self.quit or ((self.connections + 1) > self.max_connections) then
       return
     end
 
-    local co = coro.create(function(sock)
-      local client_handle = tcp_native.new()
-      if not client_handle then return end
+    local socket, err = Socket:new(self.bufferSize)
+    if not socket then
+      client_handle:close()
+      return 
+    end
 
-      local ret = handle:accept(client_handle)
-      if ret ~= 0 then
-        client_handle:close()
-        return
-      end
-      
-      local socket, err = Socket:new(self.bufferSize)
-      if not socket then return end
+    client_handle:set_read_buffer(socket.read_buffer)
+    socket.fd = client_handle:fd()
+    socket.handle = client_handle
+    socket.server = self
+    socket:setTimeout(self.timeout)
+    socket:setNodelay(self.nodelay)
+    socket:setKeepalive(self.keepalive, self.keepidle)
 
-      client_handle:set_read_buffer(socket.read_buffer)
-      socket.fd = client_handle:fd()
-      socket.handle = client_handle
-      socket.server = self
-      socket:setTimeout(self.timeout)
-      socket:setNodelay(self.nodelay)
-      socket:setKeepalive(self.keepalive, self.keepidle)
+    self.connections = self.connections + 1
 
-      self.connections = self.connections + 1
-
-      onconnect(socket)
-      socket:close()
-    end)
-
-    coroutine.resume(co)
+    onconnect(socket)
+    socket:close()
   end
 
   err = handle:listen(_onconnect, options.backlog)
