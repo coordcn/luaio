@@ -10,7 +10,7 @@ typedef struct {
   luaio_list_t  free_list;
   uint32_t      max_free_chunks;
   uint32_t      free_chunks;
-  uint32_t      size;
+  uint32_t      capacity;
   uint32_t      luaio;
 } luaio_pmemory_pool_t;
 
@@ -29,7 +29,7 @@ static const uint32_t max_free_chunks[LUAIO_PMEMORY_MAX_SLOT] = {
   128,   128,   128,   128,   128,   128,   128,   128
 };
 
-static const uint32_t size_table[LUAIO_PMEMORY_MAX_SLOT] = {
+static const uint32_t capacity_table[LUAIO_PMEMORY_MAX_SLOT] = {
   /*step = 64*/
   64,    128,   192,   256,   320,   384,   448,   512,
   /*step = 64*/
@@ -91,14 +91,16 @@ void luaio_pmemory_init() {
     luaio_list_init(&pool->free_list);
     pool->max_free_chunks = max_free_chunks[i];
     pool->free_chunks = 0;
-    pool->size = size_table[i];
+    pool->capacity = capacity_table[i];
     pool->luaio = 0;
   }
 }
 
-static void *luaio_pmemory_alloc(luaio_pmemory_pool_t *pool, size_t used) {
+#ifdef LUAIO_USE_PMEMORY
+
+static void *luaio_pmemory_alloc(luaio_pmemory_pool_t *pool) {
   luaio_list_t *free_list = &pool->free_list;
-  size_t size = pool->size;
+  size_t capacity = pool->capacity;
   luaio_pmemory_chunk_t *chunk;
 
   if (!luaio_list_is_empty(free_list)) {
@@ -107,81 +109,56 @@ static void *luaio_pmemory_alloc(luaio_pmemory_pool_t *pool, size_t used) {
     luaio_list_remove(list);
     pool->free_chunks--;  
   } else {
-    chunk = luaio_memalign(LUAIO_PMEMORY_ALIGNMENT, size + sizeof(luaio_pmemory_chunk_t));
+    chunk = luaio_memalign(LUAIO_PMEMORY_ALIGNMENT, capacity + sizeof(luaio_pmemory_chunk_t));
     if (chunk == NULL) return NULL;
   }
 
-  chunk->cookie.size = size;
-  chunk->cookie.used = used;
+  chunk->cookie.capacity = capacity;
+  chunk->cookie.size = 0;
   return (void*)((char*)chunk + sizeof(luaio_pmemory_chunk_t));
 }
 
-void *luaio__palloc(size_t size) {
+void *luaio_palloc(size_t size) {
   uint8_t index;
   size_t aligned_size;
   if (size <= LUAIO_PMEMORY_MAX_SMALL_CHUNK_SIZE) {
     aligned_size = luaio_align(size, LUAIO_PMEMORY_SMALL_CHUNK_ALIGNMENT);
     index = indexes_small[(aligned_size >> LUAIO_PMEMORY_SMALL_CHUNK_SHIFT) - 1];
-    return luaio_pmemory_alloc(&luaio_pmemory_pool[index], size);
+    return luaio_pmemory_alloc(&luaio_pmemory_pool[index]);
   } else if (size <= LUAIO_PMEMORY_MAX_LARGE_CHUNK_SIZE) {
     aligned_size = luaio_align(size, LUAIO_PMEMORY_LARGE_CHUNK_ALIGNMENT);
     index = indexes_large[(aligned_size >> LUAIO_PMEMORY_LARGE_CHUNK_SHIFT) - 1];
-    return luaio_pmemory_alloc(&luaio_pmemory_pool[index], size);
+    return luaio_pmemory_alloc(&luaio_pmemory_pool[index]);
   } else {
     luaio_pmemory_chunk_t *chunk = luaio_memalign(LUAIO_PMEMORY_ALIGNMENT, size + sizeof(luaio_pmemory_chunk_t));
     if (chunk == NULL) return NULL;
-    chunk->cookie.size = size;
-    chunk->cookie.used = size;
+    chunk->cookie.capacity = size;
+    chunk->cookie.size = 0;
     return (void*)((char*)chunk + sizeof(luaio_pmemory_chunk_t));
   }
 }
 
-void *luaio__prealloc(void *p, size_t size) {
-  if (size == 0 && p != NULL) {
-    luaio__pfree(p);
-    return NULL;
-  }
-
-  if (p == NULL) return luaio__palloc(size);
-
-  luaio_pmemory_chunk_t *old_chunk = (luaio_pmemory_chunk_t*)((char*)p - sizeof(luaio_pmemory_chunk_t));
-  size_t old_size = old_chunk->cookie.size;
-  size_t old_used = old_chunk->cookie.used;
-
-  if (size <= old_size) {
-    old_chunk->cookie.used = size;
-    return p;
-  }
-
-  void *new_p = luaio__palloc(size);
-  if (new_p == NULL) return NULL;
-  luaio_memcpy(new_p, p, old_used);
-  luaio__pfree(p);
-
-  return new_p;
-}
-
-void luaio__pfree(void *p) {
+void luaio_pfree(void *p) {
   if (p != NULL) {
     luaio_pmemory_chunk_t *chunk = (luaio_pmemory_chunk_t*)((char*)p - sizeof(luaio_pmemory_chunk_t));
 
     uint8_t index;
     /*size_t aligned_size;*/
     luaio_pmemory_pool_t *pool;
-    size_t size = chunk->cookie.size;
+    size_t capacity = chunk->cookie.capacity;
 
-    if (size <= LUAIO_PMEMORY_MAX_SMALL_CHUNK_SIZE) {
+    if (capacity <= LUAIO_PMEMORY_MAX_SMALL_CHUNK_SIZE) {
       /*aligned_size = luaio_align(size, LUAIO_PMEMORY_SMALL_CHUNK_ALIGNMENT);*/
-      index = indexes_small[(size >> LUAIO_PMEMORY_SMALL_CHUNK_SHIFT) - 1];
+      index = indexes_small[(capacity >> LUAIO_PMEMORY_SMALL_CHUNK_SHIFT) - 1];
       pool = &luaio_pmemory_pool[index];
       if (pool->free_chunks < pool->max_free_chunks) {
         luaio_list_insert_head(&chunk->list, &pool->free_list);
         pool->free_chunks++;
         return;
       }
-    } else if (size <= LUAIO_PMEMORY_MAX_LARGE_CHUNK_SIZE) {
+    } else if (capacity <= LUAIO_PMEMORY_MAX_LARGE_CHUNK_SIZE) {
       /*aligned_size = luaio_align(size, LUAIO_PMEMORY_LARGE_CHUNK_ALIGNMENT);*/
-      index = indexes_large[(size >> LUAIO_PMEMORY_LARGE_CHUNK_SHIFT) - 1];
+      index = indexes_large[(capacity >> LUAIO_PMEMORY_LARGE_CHUNK_SHIFT) - 1];
       pool = &luaio_pmemory_pool[index];
       if (pool->free_chunks < pool->max_free_chunks) {
         luaio_list_insert_head(&chunk->list, &pool->free_list);
@@ -192,4 +169,46 @@ void luaio__pfree(void *p) {
 
     luaio_free(chunk);
   }
+}
+
+#else
+
+void *luaio_palloc(size_t size) {
+  luaio_pmemory_chunk_t *chunk = luaio_malloc(size + sizeof(luaio_pmemory_chunk_t));
+  if (chunk == NULL) return NULL;
+  chunk->cookie.capacity = size;
+  chunk->cookie.size = 0;
+  return (void*)((char*)chunk + sizeof(luaio_pmemory_chunk_t));
+}
+
+void luaio_pfree(void *p) {
+  if (p != NULL) {
+    luaio_pmemory_chunk_t *chunk = (luaio_pmemory_chunk_t*)((char*)p - sizeof(luaio_pmemory_chunk_t));
+    luaio_free(chunk);
+  }
+}
+
+#endif
+
+void *luaio_prealloc(void *p, size_t size) {
+  if (size == 0 && p != NULL) {
+    luaio_pfree(p);
+    return NULL;
+  }
+
+  if (p == NULL) return luaio_palloc(size);
+
+  luaio_pmemory_chunk_t *old_chunk = (luaio_pmemory_chunk_t*)((char*)p - sizeof(luaio_pmemory_chunk_t));
+  size_t old_capacity = old_chunk->cookie.capacity;
+
+  if (size <= old_capacity) {
+    return p;
+  }
+
+  void *new_p = luaio_palloc(size);
+  if (new_p == NULL) return NULL;
+  luaio_memcpy(new_p, p, old_capacity);
+  luaio_pfree(p);
+
+  return new_p;
 }

@@ -113,11 +113,7 @@
 int luaio_cannot_change(lua_State *L);
 
 static inline void luaio_resume(lua_State *L, int nargs) {
-#if LUAIO_USE_LUAJIT
-  int ret = lua_resume(L, nargs);
-#else
   int ret = lua_resume(L, NULL, nargs);
-#endif
   if (ret > LUA_YIELD) {
     const char *error_string = lua_tostring(L, -1);
     luaL_error(L, "luaio_resume() error: \n%s\n", error_string ? error_string : "unknow");

@@ -7,7 +7,10 @@
 #ifndef LUAIO_COMMON_H
 #define LUAIO_COMMON_H
 
+#include "luaio_stack_buffer.h"
+
 #define luaio_check_data(L, index, name) \
+  luaio_stack_buffer_t stack_buf; \
   uv_buf_t *bufs; \
   uv_buf_t *tmp = NULL; \
   uv_buf_t buf; \
@@ -41,7 +44,7 @@
     bufs = &buf; \
   } else if (type == LUA_TTABLE) { \
     count = lua_rawlen(L, index); \
-    bufs = luaio_palloc(sizeof(uv_buf_t) * count); \
+    bufs = luaio_stack_buffer_init(&stack_buf, sizeof(uv_buf_t) * count); \
     if (bufs == NULL) { \
       lua_pushinteger(L, 0); \
       lua_pushinteger(L, UV_ENOMEM); \

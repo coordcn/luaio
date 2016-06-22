@@ -31,14 +31,13 @@ static int luaio_write_buffer_new(lua_State *L) {
   }
 
   char *start = luaio_palloc(size);
-  size_t capacity = luaio_pmemory_size(start, size);
-  luaio_pmemory_set_used(start, capacity);
   if (start == NULL) {
     lua_pop(L, 1);
     lua_pushnil(L);
     return 1;
   }
 
+  size_t capacity = luaio_pmemory_get_capacity(start);
   buffer->type = LUAIO_TYPE_WRITE_BUFFER;
   buffer->size = size;
   buffer->capacity = capacity;

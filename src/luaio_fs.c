@@ -327,14 +327,13 @@ static int luaio_fs_read(lua_State *L) {
   if (buffer->capacity == 0) {
     size_t buffer_size = buffer->size;
     char *start = luaio_palloc(buffer_size);
-    size_t capacity = luaio_pmemory_size(start, buffer_size);
-    luaio_pmemory_set_used(start, capacity);
     if (start == NULL) {
       luaio_pfree(req);
       lua_pushinteger(L, UV_ENOMEM);
       return 1;
     }
 
+    size_t capacity = luaio_pmemory_get_capacity(start);
     buffer->capacity = capacity;
     buffer->start = start;
     buffer->read_pos = start;
@@ -373,7 +372,7 @@ static int luaio_fs_write(lua_State *L) {
                         luaio_fs_callback);
   if (err) {
     if(tmp != NULL) {
-      luaio_pfree(tmp);
+      luaio_stack_buffer_free(&stack_buf);
     }
 
     luaio_pfree(req);
@@ -384,7 +383,7 @@ static int luaio_fs_write(lua_State *L) {
   lua_pushvalue(L, 2);
   req->write_data_ref = luaL_ref(L, LUA_REGISTRYINDEX);
   if(tmp != NULL) {
-    luaio_pfree(tmp);
+    luaio_stack_buffer_free(&stack_buf);
   }
 
   return lua_yield(L, 0);
