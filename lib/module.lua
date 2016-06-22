@@ -186,11 +186,11 @@ function Module:require(name, version)
   end
 
   if modules_cache[real_path] then
-    return module_cache[real_path]
+    return modules_cache[real_path]
   end
 
   local ret = self:load_from_path(name, real_path, self.deps)
-  if ret then module_cache[real_path] = ret end
+  if ret then modules_cache[real_path] = ret end
   return ret
 end
 
